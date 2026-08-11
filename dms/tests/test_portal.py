@@ -147,3 +147,20 @@ class TestDmsPortal(odoo.tests.HttpCase, StorageAttachmentBaseCase):
             file.check_access("write")
         with self.assertRaises(AccessError, msg="Portal user should not have access"):
             file.check_access("unlink")
+
+    def test_portal_directory_search(self):
+        """Portal directory name search must actually filter.
+
+        Both 18.0 (``expression.OR``) and the ported 19.0 code built
+        ``OR([[], [...]])`` — the empty domain is TRUE, so the OR collapsed
+        and the search never filtered anything.
+        """
+        self.authenticate("portal", "portal")
+        response = self.url_open("/my/dms?search_in=name&search=zzz-no-match")
+        self.assertNotIn(
+            "Partners",
+            response.text,
+            "A non-matching search must filter out the Partners directory",
+        )
+        response = self.url_open("/my/dms?search_in=name&search=Partners")
+        self.assertIn("Partners", response.text)
