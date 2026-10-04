@@ -5,7 +5,7 @@
 {
     "name": "Document Management System",
     "summary": "Document Management System for Odoo",
-    "version": "19.0.1.1.1",
+    "version": "20.0.1.0.0",
     "category": "Document Management",
     "license": "LGPL-3",
     "website": "https://github.com/OCA/dms",
@@ -19,9 +19,10 @@
         "web",
     ],
     "data": [
+        "data/portal_entry_data.xml",
         # Security
         "security/security.xml",
-        "security/ir.model.access.csv",
+        "security/ir.access.csv",
         # Actions
         "actions/file.xml",
         # Templates

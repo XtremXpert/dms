@@ -286,7 +286,7 @@ class DirectoryMailTestCase(StorageDatabaseBaseCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.params = cls.env["ir.config_parameter"].sudo()
-        cls.params.set_param("mail.catchall.domain", "dmstest.com")
+        cls.params.set_str("mail.catchall.domain", "dmstest.com")
         cls.domain = cls.env["mail.alias.domain"].create({"name": "dmstest.com"})
         cls.alias = cls.env["mail.alias"].create(
             {

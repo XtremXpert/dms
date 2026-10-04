@@ -6,10 +6,13 @@
 
 from logging import getLogger
 
-from odoo import api, fields, models
+from odoo import SUPERUSER_ID, api, fields, models
 from odoo.exceptions import AccessError
 from odoo.fields import Domain
 from odoo.tools import SQL
+from odoo.tools.safe_eval import safe_eval
+
+from odoo.addons.base.models.ir_access import IN_SELECTION
 
 _logger = getLogger(__name__)
 
@@ -243,48 +246,66 @@ class DmsSecurityMixin(models.AbstractModel):
         return super()._can_return_content(field_name, access_token)
 
     def filtered_domain(self, domain):
-        """This method is needed to inhibit the behavior when called from the
-        _check_access() method with sudo() https://github.com/odoo/odoo/blob/fc737a147b9aefbd6ae5d111835ce3f4f7b4240a/odoo/models.py#L4465.
-        It would cause the error that multiple records are not accessed to be
-        displayed.
-        The _filtered_access() method is also overwritten to prevent this sudo()
-        specific behavior and to be able to access only the appropriate records.
+        """Odoo 20 : has_access / check_access / _filtered_access évaluent le
+        domaine d'accès avec ``origin.sudo().filtered_domain(domain)``. En sudo,
+        les champs calculés permission_* vaudraient pour le superutilisateur et
+        tout serait accessible ; on évalue donc ces domaines en SQL : les méthodes
+        _search_permission_* retrouvent l'utilisateur réel (``sudo(False)``).
+        Le vrai superutilisateur garde l'accès à tout.
         """
         if self.env.su:
-            return self
+            if self.env.uid == SUPERUSER_ID:
+                return self
+            domain = Domain(domain)
+            if (
+                self
+                and all(isinstance(id_, int) for id_ in self._ids)
+                and any(
+                    cond.field_expr.startswith("permission_")
+                    for cond in domain.iter_conditions()
+                )
+            ):
+                found = self.with_context(active_test=False).search(
+                    Domain("id", "in", self.ids) & domain
+                )
+                return self.filtered(lambda rec: rec.id in found._ids)
         return super().filtered_domain(domain)
-
-    def _filtered_access_no_recursion(self, operation: str):
-        """This method is just the same as _filtered_access
-        but it can not be called withoud super due to
-        recursion error.
-        """
-        if self and not self.env.su and (result := self._check_access(operation)):
-            return self - result[0]
-        return self
-
-    def _filtered_access(self, operation):
-        # Only kept to not break inheritance; see next comment
-        result = super()._filtered_access(operation)
-        # HACK Always fall back to applying rules by SQL.
-        # Upstream `_filtered_access()` doesn't use computed fields
-        # search methods. Thus, it will take the `[('permission_{operation}',
-        # '=', user.id)]` rule literally. Obviously that will always fail
-        # because `self[f"permission_{operation}"]` will always be a `bool`,
-        # while `user.id` will always be an `int`.
-        result |= self._filtered_access_no_recursion(operation)
-        return result
 
     def _check_access_dms_record(self, operation: str) -> tuple | None:
         """Specific method "similar" to _check_access() but with a different
         behavior: check if you do not really have access to any of the records
         in to avoid performing the corresponding create/write/unlink action."""
         if any(self._ids) and not self.env.su:
-            Rule = self.env["ir.rule"]
-            domain = Rule._compute_domain(self._name, operation)
+            domain = self._dms_restriction_domain(operation)
             items = self.with_context(active_test=False).search(domain)
             if any(x_id not in items.ids for x_id in self.ids):
-                raise Rule._make_access_error(operation, (self - items))
+                raise self.env["ir.access"]._make_record_access_error(
+                    self - items, operation
+                )
+
+    def _dms_restriction_domain(self, operation: str) -> Domain:
+        """Odoo 20 : équivalent de ``ir.rule._compute_domain`` en 19.0.
+
+        Seules les restrictions (ir.access sans groupe : multi-société, droits
+        calculés permission_*, verrou) comptent ici, comme les anciennes règles
+        globales ; les permissions (ex-ACL) sont volontairement ignorées, car la
+        création se fait en sudo et un groupe d'accès DMS peut ouvrir des droits
+        à un utilisateur qui n'a pas de groupe DMS.
+        """
+        IrAccess = self.env["ir.access"]
+        operations = IN_SELECTION[operation]
+        eval_context = None
+        domains = []
+        for access in IrAccess._get_all_access().get(self._name, ()):
+            if access.group_id or access.operation not in operations:
+                continue
+            domain = access.domain
+            if not isinstance(domain, Domain):
+                if eval_context is None:
+                    eval_context = IrAccess._eval_context()
+                domain = Domain(safe_eval(domain, eval_context))
+            domains.append(domain)
+        return Domain.AND(domains)
 
     @api.model_create_multi
     def create(self, vals_list):

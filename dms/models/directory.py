@@ -5,7 +5,6 @@
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
 
 import ast
-import base64
 import logging
 import os
 from ast import literal_eval
@@ -15,7 +14,7 @@ from typing import Literal  # noqa # pylint: disable=unused-import
 from odoo import api, fields, models, tools
 from odoo.exceptions import UserError, ValidationError
 from odoo.fields import Domain
-from odoo.tools import consteq, human_size
+from odoo.tools import BinaryBytes, consteq, human_size
 
 from ..tools.file import check_name, unique_name
 
@@ -507,8 +506,9 @@ class DmsDirectory(models.Model):
     def _compute_tags(self):
         for record in self:
             tags = record.tag_ids.filtered(
-                lambda rec, record=record: not rec.category_id
-                or rec.category_id == record.category_id
+                lambda rec, record=record: (
+                    not rec.category_id or rec.category_id == record.category_id
+                )
             )
             record.tag_ids = tags
 
@@ -581,8 +581,9 @@ class DmsDirectory(models.Model):
                 children = record.sudo().parent_id.child_directory_ids
 
             if children.filtered(
-                lambda child, record=record: child.name == record.name
-                and child != record
+                lambda child, record=record: (
+                    child.name == record.name and child != record
+                )
             ):
                 raise ValidationError(
                     self.env._("A directory with the same name already exists.")
@@ -657,7 +658,7 @@ class DmsDirectory(models.Model):
             }
             if isinstance(contents_raw := attachment.content, str):
                 contents_raw = contents_raw.encode()
-            vals["content"] = base64.b64encode(contents_raw)
+            vals["content"] = BinaryBytes(contents_raw)
             self.env["dms.file"].sudo().create(vals)
             names.append(uname)
 
@@ -671,7 +672,7 @@ class DmsDirectory(models.Model):
         # Hack to prevent error related to mail_message parent not exists in some cases
         ctx = dict(self.env.context).copy()
         ctx.update({"default_parent_id": False})
-        self.env.registry.clear_cache()
+        self.env.transaction.invalidate_ormcache()
         res = super(DmsDirectory, self.with_context(**ctx)).create(vals_list)
         return res
 

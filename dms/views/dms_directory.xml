@@ -323,7 +323,7 @@
                                             <span>&amp;nbsp;</span>
                                             <span
                                                 class="total_items"
-                                                t-esc="record.count_total_directories.raw_value"
+                                                t-out="record.count_total_directories.raw_value"
                                             />
                                             <span class="ms-1">Directories</span>
                                         </a>
@@ -338,7 +338,7 @@
                                             <span>&amp;nbsp;</span>
                                             <span
                                                 class="total_items"
-                                                t-esc="record.count_total_files.raw_value"
+                                                t-out="record.count_total_files.raw_value"
                                             />
                                             <span class="ms-1">Files</span>
                                         </a>

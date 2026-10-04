@@ -7,6 +7,7 @@ import unicodedata
 from odoo import http
 from odoo.exceptions import AccessError
 from odoo.http import request
+from odoo.tools import BinaryBytes
 
 from odoo.addons.web.controllers.binary import clean
 
@@ -16,7 +17,7 @@ class OnboardingController(http.Controller):
     def forbidden_extensions(self, **_kwargs):
         params = request.env["ir.config_parameter"].sudo()
         return {
-            "forbidden_extensions": params.get_param(
+            "forbidden_extensions": params.get_str(
                 "dms.forbidden_extensions", default=""
             )
         }
@@ -45,7 +46,7 @@ class OnboardingController(http.Controller):
                     {
                         "directory_id": directory_id,
                         "name": filename,
-                        "content_binary": ufile.read(),
+                        "content_binary": BinaryBytes(ufile.read()),
                     }
                 )
             except AccessError:

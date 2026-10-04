@@ -193,7 +193,7 @@ class FileFilestoreTestCase(StorageFileBaseCase):
         oid = object_file.with_context(oid=True).content_file
         self.assertTrue(oid, msg="Content file is not empty (with oid)")
         object_file.with_context(**{"show_content": True}).write(
-            {"content": base64.b64encode(b"\xff new content")}
+            {"content": base64.b64encode(b"\xff new content").decode()}
         )
         self.assertNotEqual(
             oid,

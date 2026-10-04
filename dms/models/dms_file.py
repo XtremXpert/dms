@@ -4,7 +4,6 @@
 # Copyright 2024 Subteno - Timothée Vannier (https://www.subteno.com).
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
 
-import base64
 import hashlib
 import json
 import logging
@@ -226,21 +225,25 @@ class DMSFile(models.Model):
         if self.storage_id.save_type in ["file", "attachment"]:
             new_vals["content_file"] = self.content
         else:
-            new_vals["content_binary"] = self.content and binary
+            new_vals["content_binary"] = self.content or False
         return new_vals
 
     @api.model
     def _get_binary_max_size(self):
-        return int(
+        # Odoo 20 : get_param -> get_int / get_str
+        return (
             self.env["ir.config_parameter"]
             .sudo()
-            .get_param("dms.binary_max_size", default=25)
+            .get_int("dms.binary_max_size", default=25)
         )
 
     @api.model
     def _get_forbidden_extensions(self):
-        get_param = self.env["ir.config_parameter"].sudo().get_param
-        extensions = get_param("dms.forbidden_extensions", default="")
+        extensions = (
+            self.env["ir.config_parameter"]
+            .sudo()
+            .get_str("dms.forbidden_extensions", default="")
+        )
         return [extension.strip() for extension in extensions.split(",")]
 
     def _get_icon_placeholder_name(self):
@@ -439,13 +442,16 @@ class DMSFile(models.Model):
     def _compute_extension(self):
         for record in self:
             record.extension = file.guess_extension(
-                record.name, record.mimetype, record.content
+                record.name,
+                record.mimetype,
+                bytes(record.content) if record.content else None,
             )
 
     @api.depends("content")
     def _compute_mimetype(self):
         for record in self:
-            binary = base64.b64decode(record.content or "")
+            # Odoo 20 : un champ Binary vaut un BinaryValue (octets bruts)
+            binary = bytes(record.content) if record.content else b""
             record.mimetype = guess_mimetype(binary)
 
     @api.depends("size")
@@ -455,20 +461,17 @@ class DMSFile(models.Model):
 
     @api.depends("content_binary", "content_file", "attachment_id")
     def _compute_content(self):
-        bin_size = self.env.context.get("bin_size", False)
+        # Odoo 20 : les valeurs binaires sont des BinaryValue (taille et contenu
+        # à la demande) ; plus de contexte bin_size / base64.
         for record in self:
             if record.content_file:
-                context = {"human_size": True} if bin_size else {"base64": True}
-                record.content = record.with_context(**context).content_file
+                record.content = record.content_file
             elif record.content_binary:
-                record.content = (
-                    record.content_binary
-                    if bin_size
-                    else base64.b64encode(record.content_binary)
-                )
+                record.content = record.content_binary
             elif record.attachment_id:
-                context = {"human_size": True} if bin_size else {"base64": True}
-                record.content = record.with_context(**context).attachment_id.datas
+                record.content = record.attachment_id.raw
+            else:
+                record.content = False
 
     @api.depends("content_binary", "content_file")
     def _compute_save_type(self):
@@ -533,8 +536,9 @@ class DMSFile(models.Model):
     @api.constrains("extension")
     def _check_extension(self):
         if self.filtered(
-            lambda rec: rec.extension
-            and rec.extension in self._get_forbidden_extensions()
+            lambda rec: (
+                rec.extension and rec.extension in self._get_forbidden_extensions()
+            )
         ):
             raise ValidationError(
                 self.env._("The file has a forbidden file extension.")
@@ -556,7 +560,7 @@ class DMSFile(models.Model):
         updates = defaultdict(set)
         for record in self:
             values = self._get_content_inital_vals()
-            binary = base64.b64decode(record.content or "")
+            binary = bytes(record.content) if record.content else b""
             values = record._update_content_vals(values, binary)
             updates[tools.frozendict(values)].add(record.id)
         for vals, ids in updates.items():
@@ -583,7 +587,9 @@ class DMSFile(models.Model):
                 .create(
                     {
                         "name": vals["name"],
-                        "datas": vals["content"],
+                        "raw": self._fields["content"].convert_to_cache(
+                            vals["content"], self
+                        ),
                         "res_model": directory.res_model,
                         "res_id": directory.res_id,
                     }
