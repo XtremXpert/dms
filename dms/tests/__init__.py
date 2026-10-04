@@ -8,3 +8,4 @@ from . import test_portal
 from . import test_access_token
 from . import test_access_flush
 from . import test_backend_tour
+from . import test_port_20

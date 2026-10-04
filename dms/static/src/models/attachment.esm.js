@@ -29,9 +29,17 @@ patch(Attachment.prototype, {
         }
         return super.urlQueryParams;
     },
+    // Text preview: /mail/attachment/render_text expects an ir.attachment, so
+    // the id of a dms.file would show (or refuse) another attachment.
+    get textThumbnailUrl() {
+        if (this.isDmsFile && this.id > 0) {
+            return url(`/dms/file/render_text/${this.id}`, {head: "1"});
+        }
+        return super.textThumbnailUrl;
+    },
     get defaultSource() {
         if (this.isDmsFile && this.isText) {
-            return url(this.urlRoute, this.urlQueryParams);
+            return url(`/dms/file/render_text/${this.id}`);
         }
         return super.defaultSource;
     },
