@@ -6,4 +6,5 @@ from . import test_file
 from . import test_benchmark
 from . import test_portal
 from . import test_access_token
+from . import test_access_flush
 from . import test_backend_tour
