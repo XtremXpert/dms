@@ -48,6 +48,7 @@
             "dms/static/src/models/*.js",
             "dms/static/src/js/fields/path_json/path_owl.esm.js",
             "dms/static/src/js/fields/preview_binary/preview_record.esm.js",
+            "dms/static/src/js/upload.esm.js",
             "dms/static/src/js/views/*.esm.js",
             # XML
             "dms/static/src/js/fields/path_json/path_owl.xml",

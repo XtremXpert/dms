@@ -6,6 +6,7 @@
 //   - mode fiche : resModel + resId -> répertoires liés à l'enregistrement ;
 //   - mode liste : rootModel (dms.storage / dms.directory) + rootDomain.
 import {Component, proxy, signal, t, useProps} from "@odoo/owl";
+import {DmsUploadError, uploadDmsFiles} from "@dms/js/upload.esm";
 import {ConfirmationDialog} from "@web/core/confirmation_dialog/confirmation_dialog";
 import {FormViewDialog} from "@web/views/view_dialogs/form_view_dialog";
 import {_t} from "@web/core/l10n/translation";
@@ -508,16 +509,12 @@ export class DmsTree extends Component {
     async upload(node, files) {
         let results = [];
         try {
-            const response = await this.http.post(
-                "/web/binary/upload_dms_file",
-                {csrf_token: odoo.csrf_token, ufile: files, directory_id: node.id},
-                "text"
-            );
-            results = JSON.parse(response);
+            results = await uploadDmsFiles(this.http, node.id, files);
         } catch (error) {
-            this.notification.add(error.message || _t("An error occurred during the upload"), {
-                type: "danger",
-            });
+            if (!(error instanceof DmsUploadError)) {
+                throw error;
+            }
+            this.notification.add(error.message, {type: "danger"});
             return;
         }
         const errors = results.filter((r) => r.error);

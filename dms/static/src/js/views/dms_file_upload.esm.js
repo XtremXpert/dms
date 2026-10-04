@@ -7,6 +7,7 @@
 // useEffect n'a plus de dépendances : le dépôt de fichiers est branché au montage.
 import {onMounted, onWillUnmount, proxy, signal} from "@odoo/owl";
 import {useBus, useService} from "@web/core/utils/hooks";
+import {DmsUploadError, uploadDmsFiles} from "../upload.esm";
 import {_t} from "@web/core/l10n/translation";
 
 export function createFileDropZoneExtension() {
@@ -111,17 +112,15 @@ export function createFileUploadExtension() {
                     type: "danger",
                 });
             }
-            const fileData = await this.http.post(
-                "/web/binary/upload_dms_file",
-                {
-                    csrf_token: odoo.csrf_token,
-                    ufile: [...files],
-                    directory_id: directory_id,
-                },
-                "text"
-            );
-            // La route renvoie une entrée par fichier ({error} ou {id, …}).
-            const results = [].concat(JSON.parse(fileData));
+            let results = [];
+            try {
+                results = await uploadDmsFiles(this.http, directory_id, files);
+            } catch (error) {
+                if (!(error instanceof DmsUploadError)) {
+                    throw error;
+                }
+                return this.notification.add(error.message, {type: "danger"});
+            }
             await this.model.load();
             for (const result of results) {
                 if (result.error) {

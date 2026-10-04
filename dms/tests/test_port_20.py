@@ -4,6 +4,7 @@
 from odoo.tests import Form, HttpCase, new_test_user, tagged
 
 from .common import DocumentsBaseCase
+from .sample_files import SAMPLES
 
 
 class TestOnchangeKeepsDefaults(DocumentsBaseCase):
@@ -100,3 +101,70 @@ class TestRenderText(HttpCase):
         self.assertEqual(created["filename"], "nouveau.txt")
         names = directory.file_ids.mapped("name")
         self.assertEqual(sorted(names), ["note.txt", "nouveau.txt"])
+
+
+@tagged("post_install", "-at_install")
+class TestUploadCommonTypes(HttpCase):
+    """Envoi réel (route /web/binary/upload_dms_file) des types de fichiers
+    les plus courants, en stockage base de données et en stockage fichier."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.user = new_test_user(
+            cls.env,
+            login="dms-types",
+            password="dms-types",
+            groups="dms.group_dms_user",
+        )
+        group = cls.env["dms.access.group"].create(
+            {
+                "name": "Types courants",
+                "perm_create": True,
+                "explicit_user_ids": [(6, 0, cls.user.ids)],
+            }
+        )
+        cls.directories = {}
+        for save_type in ("database", "file"):
+            storage = cls.env["dms.storage"].create(
+                {"name": f"Types {save_type}", "save_type": save_type}
+            )
+            cls.directories[save_type] = cls.env["dms.directory"].create(
+                {
+                    "name": f"Types {save_type}",
+                    "is_root_directory": True,
+                    "storage_id": storage.id,
+                    "group_ids": [(6, 0, group.ids)],
+                }
+            )
+
+    def _upload(self, directory):
+        response = self.url_open(
+            "/web/binary/upload_dms_file",
+            data={"directory_id": directory.id, "csrf_token": self.csrf_token()},
+            files=[
+                ("ufile", (name, data, "application/octet-stream"))
+                for name, (data, _mimetypes) in SAMPLES.items()
+            ],
+        )
+        self.assertEqual(response.status_code, 200)
+        return {item["filename"]: item for item in response.json()}
+
+    def test_upload_common_types(self):
+        self.authenticate("dms-types", "dms-types")
+        for save_type, directory in self.directories.items():
+            results = self._upload(directory)
+            for name, (data, mimetypes) in SAMPLES.items():
+                with self.subTest(storage=save_type, file=name):
+                    self.assertIn(name, results, results)
+                    self.assertNotIn("error", results[name])
+                    record = self.env["dms.file"].browse(results[name]["id"])
+                    self.assertIn(record.mimetype, mimetypes)
+                    self.assertEqual(record.size, len(data))
+                    self.assertEqual(record.save_type, save_type)
+                    self.assertEqual(bytes(record.content), data)
+                    download = self.url_open(
+                        f"/web/content/dms.file/{record.id}/content?download=true"
+                    )
+                    self.assertEqual(download.status_code, 200)
+                    self.assertEqual(download.content, data)
