@@ -14,7 +14,7 @@ from PIL import Image
 from odoo import api, fields, models, tools
 from odoo.exceptions import UserError, ValidationError
 from odoo.fields import Domain
-from odoo.tools import consteq, human_size
+from odoo.tools import SQL, consteq, human_size
 from odoo.tools.mimetypes import guess_mimetype
 
 from ..tools import file
@@ -374,24 +374,31 @@ class DMSFile(models.Model):
     def search_panel_select_multi_range(self, field_name, **kwargs):
         operator, directory_id = self._search_panel_directory(**kwargs)
         if field_name == "tag_ids":
-            sql_query = """
+            # Ne compter que les fichiers lisibles par l'utilisateur (_search
+            # applique les droits DMS) ; sans dossier sélectionné, toutes les
+            # étiquettes restent listées, même à zéro.
+            domain = [("directory_id", operator, directory_id)] if directory_id else []
+            return self.env.execute_query_dict(
+                SQL(
+                    """
                 SELECT t.name AS name, t.id AS id, c.name AS group_name,
                     c.id AS group_id, COUNT(r.fid) AS count
                 FROM dms_tag t
                 JOIN dms_category c ON t.category_id = c.id
-                LEFT JOIN dms_file_tag_rel r ON t.id = r.tid
-                WHERE %(filter_by_file_ids)s IS FALSE OR r.fid = ANY(%(file_ids)s)
+                LEFT JOIN dms_file_tag_rel r
+                    ON t.id = r.tid AND r.fid IN %s
                 GROUP BY c.name, c.id, t.name, t.id
-                ORDER BY c.name, c.id, t.name, t.id;
-            """
-            file_ids = []
-            if directory_id:
-                file_ids = self.search([("directory_id", operator, directory_id)]).ids
-            self.env.cr.execute(
-                sql_query,
-                {"file_ids": file_ids, "filter_by_file_ids": bool(directory_id)},
+                %s
+                ORDER BY c.name, c.id, t.name, t.id
+                    """,
+                    self._search(domain).subselect(),
+                    SQL("HAVING COUNT(r.fid) > 0") if directory_id else SQL(),
+                    to_flush=[
+                        self._fields["tag_ids"],
+                        self.env["dms.tag"]._fields["category_id"],
+                    ],
+                )
             )
-            return self.env.cr.dictfetchall()
         if directory_id and field_name in ["directory_id", "category_id"]:
             comodel_domain = kwargs.pop("comodel_domain", [])
             directory_comodel_domain = self._search_panel_domain(

@@ -176,11 +176,17 @@ class DmsSecurityMixin(models.AbstractModel):
             WHERE
                 users.uid = %s {operation_check}
             )"""
-        sql = SQL(
-            select,
-            self.env.uid,
-        )
-        return sql
+        # Ces relations sont des champs calculés stockés : sans to_flush, une
+        # modification de la même transaction (groupe créé, utilisateur ajouté
+        # ou retiré, droit changé) serait ignorée par la requête.
+        group_fields = self.env["dms.access.group"]._fields
+        to_flush = [
+            self.env["dms.directory"]._fields["complete_group_ids"],
+            group_fields["users"],
+        ]
+        if operation != "read":
+            to_flush.append(group_fields[f"perm_inclusive_{operation}"])
+        return SQL(select, self.env.uid, to_flush=to_flush)
 
     @api.model
     def _get_domain_by_access_groups(self, operation):
