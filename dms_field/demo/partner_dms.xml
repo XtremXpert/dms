@@ -1,17 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <odoo>
-    <record id="view_partner_form" model="ir.ui.view">
-        <field name="name">res.partner.form</field>
-        <field name="model">res.partner</field>
-        <field name="inherit_id" ref="base.view_partner_form" />
-        <field name="arch" type="xml">
-            <notebook position="inside">
-                <page name="dms" string="DMS" invisible="not id">
-                    <field name="dms_directory_ids" mode="dms_list" />
-                </page>
-            </notebook>
-        </field>
-    </record>
     <record id="access_group_demo" model="dms.access.group">
         <field name="name">Admin (dms_field module)</field>
         <field name="perm_create">True</field>

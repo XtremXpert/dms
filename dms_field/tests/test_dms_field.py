@@ -307,6 +307,15 @@ class TestDmsField(BaseCommon):
             "arch"
         ]
         self.assertIn("<dms_list", arch)
+        # Vue livrée en données (pas seulement en démo) et réservée aux
+        # utilisateurs DMS.
+        self.assertTrue(self.env.ref("dms_field.view_partner_form", False))
+        user_arch = (
+            self.env["res.partner"]
+            .with_user(self.user_a)
+            .get_views([(False, "form")])["views"]["form"]["arch"]
+        )
+        self.assertNotIn("<dms_list", user_arch)
         self.assertIn('mode="dms_list"', arch)
         views = self.env["dms.storage"].get_views([(False, "dms_list")])
         self.assertIn("dms_list", views["views"])

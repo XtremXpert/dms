@@ -15,6 +15,7 @@
         "views/dms_directory.xml",
         "views/dms_field_template_views.xml",
         "views/dms_storage.xml",
+        "views/res_partner_views.xml",
         "security/ir.access.csv",
     ],
     "assets": {

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Odoo 20 (XtremXpert) : en amont, cette vue n'existe que dans la démo ;
+     sans elle, un modèle de champ sur les contacts n'a pas d'onglet. -->
+<odoo>
+    <record id="view_partner_form" model="ir.ui.view">
+        <field name="name">res.partner.form (in dms_field)</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form" />
+        <field name="arch" type="xml">
+            <notebook position="inside">
+                <page
+                    name="dms"
+                    string="Documents"
+                    invisible="not id"
+                    groups="dms.group_dms_user"
+                >
+                    <field name="dms_directory_ids" mode="dms_list" />
+                </page>
+            </notebook>
+        </field>
+    </record>
+</odoo>
