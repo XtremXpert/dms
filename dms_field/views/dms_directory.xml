@@ -7,9 +7,11 @@
         <field name="model">dms.directory</field>
         <field name="type">dms_list</field>
         <field name="arch" type="xml">
-            <dms_list>
-                <field name="name" />
-            </dms_list>
+            <!-- Aucun champ : DmsTree charge ses données selon les droits DMS ;
+                 lire ici le nom des répertoires (champ en bypass_search_access)
+                 lèverait une AccessError à l'ouverture de la fiche pour un
+                 utilisateur sans accès au répertoire. -->
+            <dms_list />
         </field>
     </record>
 </odoo>

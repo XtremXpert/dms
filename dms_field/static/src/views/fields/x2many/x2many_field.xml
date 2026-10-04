@@ -12,6 +12,7 @@
                 resModel="this.props.record.resModel"
                 resId="this.props.record.resId || false"
                 readonly="this.props.readonly"
+                linkedCount="this.props.record.data[this.props.name].count"
             />
         </xpath>
     </t>

@@ -60,6 +60,9 @@ export class DmsTree extends Component {
         rootModel: t.string().optional(),
         rootDomain: t.array().optional(),
         readonly: t.boolean().optional(),
+        // Mode fiche : nombre de répertoires liés, visibles ou non (valeur du
+        // champ dms_directory_ids) ; évite de proposer d'en créer un de trop.
+        linkedCount: t.number().optional(),
     });
 
     setup() {
@@ -125,7 +128,11 @@ export class DmsTree extends Component {
                     ["storage_id.save_type", "!=", "attachment"],
                 ]);
                 roots = directories.map((d) => this.makeDirectoryNode(d, true));
-                if (!roots.length && model !== "dms.field.template") {
+                if (
+                    !roots.length &&
+                    !this.props.linkedCount &&
+                    model !== "dms.field.template"
+                ) {
                     canCreate =
                         (await this.orm.searchCount("dms.field.template", [
                             ["model", "=", model],

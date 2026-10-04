@@ -2,6 +2,8 @@
 # Copyright 2024 Tecnativa - Víctor Martínez
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
 
+from lxml import etree
+
 from odoo.exceptions import UserError, ValidationError
 from odoo.tests import new_test_user
 from odoo.tools import mute_logger
@@ -307,18 +309,38 @@ class TestDmsField(BaseCommon):
             "arch"
         ]
         self.assertIn("<dms_list", arch)
-        # Vue livrée en données (pas seulement en démo) et réservée aux
-        # utilisateurs DMS.
+        # Vue livrée en données (pas seulement en démo).
         self.assertTrue(self.env.ref("dms_field.view_partner_form", False))
-        user_arch = (
-            self.env["res.partner"]
-            .with_user(self.user_a)
-            .get_views([(False, "form")])["views"]["form"]["arch"]
-        )
-        self.assertNotIn("<dms_list", user_arch)
-        self.assertIn('mode="dms_list"', arch)
         views = self.env["dms.storage"].get_views([(False, "dms_list")])
         self.assertIn("dms_list", views["views"])
+
+    def test_form_without_directory_access(self):
+        """Un interne sans accès au répertoire d'un contact peut ouvrir la
+        fiche : la sous-vue dms_list ne lit aucun champ des répertoires."""
+        template = self.env["dms.field.template"].with_context(
+            res_model=self.partner._name, res_id=self.partner.id
+        )
+        directory = template.create_dms_directory()
+        outsider = new_test_user(self.env, login="test-outsider")
+        form = (
+            self.env["res.partner"]
+            .with_user(outsider)
+            .get_views([(False, "form")])["views"]["form"]["arch"]
+        )
+        # Le client construit sa spécification de lecture depuis la sous-vue :
+        # aucun champ -> aucun read sur les répertoires (ids seulement).
+        subview = etree.fromstring(form).xpath(
+            "//field[@name='dms_directory_ids']/dms_list"
+        )
+        self.assertTrue(subview)
+        self.assertFalse(subview[0].xpath(".//field"))
+        result = self.partner.with_user(outsider).web_read({"dms_directory_ids": {}})
+        self.assertEqual(result[0]["dms_directory_ids"], directory.ids)
+        self.assertFalse(
+            self.env["dms.directory"]
+            .with_user(outsider)
+            .search([("id", "=", directory.id)])
+        )
 
     def test_storage_without_models_can_change_type(self):
         """Un stockage sans modèle lié garde des répertoires « libres » et
