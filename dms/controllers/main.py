@@ -1,15 +1,21 @@
 # Copyright 2017-2019 MuK IT GmbH
 # Copyright 2026 Tecnativa - Víctor Martínez
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
-import json
+import logging
 import unicodedata
 
-from odoo import http
-from odoo.exceptions import AccessError, UserError
-from odoo.http import request
-from odoo.tools import BinaryBytes
+from werkzeug.exceptions import BadRequest
 
+from odoo import http
+from odoo.exceptions import AccessError, MissingError, UserError
+from odoo.http import request
+from odoo.tools import BinaryBytes, str2bool
+from odoo.tools.misc import replace_exceptions
+
+from odoo.addons.mail.controllers.attachment import AttachmentController
 from odoo.addons.web.controllers.binary import clean
+
+_logger = logging.getLogger(__name__)
 
 
 class OnboardingController(http.Controller):
@@ -26,21 +32,19 @@ class OnboardingController(http.Controller):
     def upload_dms_file(self, ufile, directory_id, callback=None):
         """Similar to the web upload_attachment() method, but customized to
         directly create dms.file records.
+
+        Odoo 20 : réponse JSON (application/json) ; l'ancien mode ``callback``
+        renvoyait un script jQuery, qui n'existe plus dans le client web.
         """
         directory_id = int(directory_id)
-        files = request.httprequest.files.getlist("ufile")
         Model = request.env["dms.file"]
-        out = """<script language="javascript" type="text/javascript">
-                    var win = window.top.window;
-                    win.jQuery(win).trigger(%s, %s);
-                </script>"""
         args = []
-        for ufile in files:
-            filename = ufile.filename
+        for uploaded in request.httprequest.files.getlist("ufile"):
+            filename = uploaded.filename
             if request.httprequest.user_agent.browser == "safari":
                 # Safari sends NFD UTF-8 (where é is composed by 'e' and [accent])
                 # we need to send it the same stuff, otherwise it'll fail
-                filename = unicodedata.normalize("NFD", ufile.filename)
+                filename = unicodedata.normalize("NFD", uploaded.filename)
             try:
                 # Un savepoint par fichier : sans lui, une contrainte en échec
                 # (ex. nom déjà pris) laissait un dms.file vide en base.
@@ -51,7 +55,7 @@ class OnboardingController(http.Controller):
                             "name": filename,
                             # passer par « content » : taille, somme de contrôle
                             # et type de stockage (base, fichier, pièce jointe)
-                            "content": BinaryBytes(ufile.read()),
+                            "content": BinaryBytes(uploaded.read()),
                         }
                     )
             except AccessError:
@@ -65,7 +69,18 @@ class OnboardingController(http.Controller):
             except UserError as e:
                 args.append({"error": str(e)})
             except Exception:
-                args.append({"error": request.env._("Something horrible happened")})
+                # Erreur inattendue (stockage, disque…) : la tracer pour
+                # l'administrateur au lieu de l'avaler silencieusement.
+                _logger.exception(
+                    "DMS upload failed: %s in directory %s", filename, directory_id
+                )
+                args.append(
+                    {
+                        "error": request.env._(
+                            "Unexpected error while uploading %s.", clean(filename)
+                        )
+                    }
+                )
             else:
                 args.append(
                     {
@@ -75,8 +90,44 @@ class OnboardingController(http.Controller):
                         "size": dms_file.size,
                     }
                 )
-        return (
-            out % (json.dumps(clean(callback)), json.dumps(args))
-            if callback
-            else json.dumps(args)
+        return request.make_json_response(args)
+
+
+class DmsFileRenderController(http.Controller):
+    @http.route(
+        "/dms/file/render_text/<int:file_id>",
+        type="http",
+        auth="user",
+        readonly=True,
+    )
+    def dms_file_render_text(self, file_id, head=False, **_kwargs):
+        """Odoo 20 : la visionneuse rend les fichiers texte via
+        /mail/attachment/render_text/<id>, qui attend un ir.attachment ;
+        avec l'id d'un dms.file elle afficherait une autre pièce jointe.
+        Même rendu, mais sur dms.file et avec ses droits."""
+        with replace_exceptions(AccessError, MissingError, by=request.not_found()):
+            record = request.env["dms.file"].browse(file_id)
+            record.check_access("read")
+            mimetype = record.mimetype
+            content = bytes(record.content or b"")
+        if mimetype not in AttachmentController.SUPPORTED_TEXT_MIMETYPES:
+            raise BadRequest(f"bad document mimetype: {mimetype}")
+        head = str2bool(head, False)
+        if mimetype == "text/html" or (mimetype == "application/json" and not head):
+            stream = request.env["ir.binary"]._get_stream_from(record, "content")
+            stream.public = False
+            return stream.get_response(
+                as_attachment=False,
+                content_security_policy="default-src 'none'; sandbox;",
+            )
+        if head:
+            content = content[: AttachmentController.TEXTUAL_THUMBNAIL_SIZE]
+        response = request.render(
+            "mail.content_text", {"content": content.decode(errors="replace")}
         )
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'none'; img-src 'self' data:; "
+            "style-src 'self' 'unsafe-inline'; font-src 'self'; sandbox;"
+        )
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response

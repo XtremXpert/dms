@@ -75,8 +75,13 @@ class DmsSecurityMixin(models.AbstractModel):
         Get permissions for the current record.
         """
 
-        # Update according to presence when applying ir.rule
-        self.invalidate_recordset()
+        # Update according to presence when applying ir.rule. Seuls les
+        # enregistrements en base : invalider un enregistrement en cours
+        # d'édition (onchange, NewId) effacerait ses valeurs (ex. parent_id
+        # par défaut d'un nouveau répertoire).
+        self.browse(
+            [id_ for id_ in self._ids if isinstance(id_, int)]
+        ).invalidate_recordset()
         if self.env.su:
             self.update(
                 {
