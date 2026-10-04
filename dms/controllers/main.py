@@ -5,7 +5,7 @@ import json
 import unicodedata
 
 from odoo import http
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, UserError
 from odoo.http import request
 from odoo.tools import BinaryBytes
 
@@ -42,13 +42,18 @@ class OnboardingController(http.Controller):
                 # we need to send it the same stuff, otherwise it'll fail
                 filename = unicodedata.normalize("NFD", ufile.filename)
             try:
-                dms_file = Model.create(
-                    {
-                        "directory_id": directory_id,
-                        "name": filename,
-                        "content_binary": BinaryBytes(ufile.read()),
-                    }
-                )
+                # Un savepoint par fichier : sans lui, une contrainte en échec
+                # (ex. nom déjà pris) laissait un dms.file vide en base.
+                with request.env.cr.savepoint():
+                    dms_file = Model.create(
+                        {
+                            "directory_id": directory_id,
+                            "name": filename,
+                            # passer par « content » : taille, somme de contrôle
+                            # et type de stockage (base, fichier, pièce jointe)
+                            "content": BinaryBytes(ufile.read()),
+                        }
+                    )
             except AccessError:
                 args.append(
                     {
@@ -57,6 +62,8 @@ class OnboardingController(http.Controller):
                         )
                     }
                 )
+            except UserError as e:
+                args.append({"error": str(e)})
             except Exception:
                 args.append({"error": request.env._("Something horrible happened")})
             else:

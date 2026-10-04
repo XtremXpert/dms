@@ -33,12 +33,13 @@ class CustomerPortal(CustomerPortal):
                 return False
         return item
 
-    def _prepare_home_portal_values(self, counters):
-        values = super()._prepare_home_portal_values(counters)
-        if "dms_directory_count" in counters:
+    def _prepare_portal_counter_values(self, counter):
+        # Odoo 20 : /my/counters calcule chaque compteur à partir de
+        # (modèle, domaine, accès) ; _prepare_home_portal_values n'existe plus.
+        if counter == "dms_directory_count":
             ids = request.env["dms.directory"]._get_own_root_directories()
-            values["dms_directory_count"] = len(ids)
-        return values
+            return "dms.directory", [("id", "in", ids)], "read"
+        return super()._prepare_portal_counter_values(counter)
 
     @http.route(["/my/dms"], type="http", auth="user", website=True)
     def portal_my_dms(

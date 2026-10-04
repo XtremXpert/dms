@@ -5,7 +5,6 @@
 import {BinaryField} from "@web/views/fields/binary/binary_field";
 import {_t} from "@web/core/l10n/translation";
 import {registry} from "@web/core/registry";
-import {standardFieldProps} from "@web/views/fields/standard_field_props";
 import {useFileViewer} from "@web/core/file_viewer/file_viewer_hook";
 import {useService} from "@web/core/utils/hooks";
 
@@ -29,10 +28,8 @@ export class PreviewRecordField extends BinaryField {
     }
 }
 
+// Odoo 20 / OWL 3 : les props sont celles de BinaryField (useProps)
 PreviewRecordField.template = "dms.FilePreviewField";
-PreviewRecordField.props = {
-    ...standardFieldProps,
-};
 
 const previewRecordField = {
     component: PreviewRecordField,

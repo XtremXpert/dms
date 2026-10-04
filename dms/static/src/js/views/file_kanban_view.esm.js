@@ -15,13 +15,16 @@ import {kanbanView} from "@web/views/kanban/kanban_view";
 import {patch} from "@web/core/utils/patch";
 import {registry} from "@web/core/registry";
 
+// Odoo 20 : contrôleur dédié (l'envoi ne doit pas toucher toutes les vues kanban)
+export class FileKanbanController extends KanbanController {}
+patch(FileKanbanController.prototype, createFileUploadExtension());
 patch(FileKanbanRenderer.prototype, createFileDropZoneExtension());
-patch(KanbanController.prototype, createFileUploadExtension());
 FileKanbanRenderer.template = "dms.KanbanRenderer";
 
 export const FileKanbanView = {
     ...kanbanView,
     buttonTemplate: "dms.KanbanButtons",
+    Controller: FileKanbanController,
     Renderer: FileKanbanRenderer,
 };
 

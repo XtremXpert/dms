@@ -3,39 +3,36 @@
 //     License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
 //  **********************************************************************************/
 
+// Odoo 20 / OWL 3 : useState -> proxy, useRef -> signal.ref() (t-ref="this.…"),
+// useEffect n'a plus de dépendances : le dépôt de fichiers est branché au montage.
+import {onMounted, onWillUnmount, proxy, signal} from "@odoo/owl";
 import {useBus, useService} from "@web/core/utils/hooks";
-import {useEffect, useRef, useState} from "@odoo/owl";
 import {_t} from "@web/core/l10n/translation";
 
 export function createFileDropZoneExtension() {
     return {
         setup() {
             super.setup(...arguments);
-            this.dragState = useState({
-                showDragZone: false,
-            });
-            this.root = useRef("root");
-
-            useEffect(
-                (el) => {
-                    if (!el) {
-                        return;
-                    }
-                    const highlight = this.highlight.bind(this);
-                    const unhighlight = this.unhighlight.bind(this);
-                    const drop = this.onDrop.bind(this);
+            this.dragState = proxy({showDragZone: false});
+            const highlight = this.highlight.bind(this);
+            const unhighlight = this.unhighlight.bind(this);
+            const drop = this.onDrop.bind(this);
+            let el = null;
+            onMounted(() => {
+                el = document.querySelector(".o_content");
+                if (el) {
                     el.addEventListener("dragover", highlight);
                     el.addEventListener("dragleave", unhighlight);
                     el.addEventListener("drop", drop);
-                    return () => {
-                        el.removeEventListener("dragover", highlight);
-                        el.removeEventListener("dragleave", unhighlight);
-                        el.removeEventListener("drop", drop);
-                    };
-                },
-
-                () => [document.querySelector(".o_content")]
-            );
+                }
+            });
+            onWillUnmount(() => {
+                if (el) {
+                    el.removeEventListener("dragover", highlight);
+                    el.removeEventListener("dragleave", unhighlight);
+                    el.removeEventListener("drop", drop);
+                }
+            });
         },
 
         highlight(ev) {
@@ -63,63 +60,74 @@ export function createFileDropZoneExtension() {
 export function createFileUploadExtension() {
     return {
         setup() {
-            super.setup();
+            super.setup(...arguments);
             this.notification = useService("notification");
-            this.orm = useService("orm");
             this.http = useService("http");
-            this.fileInput = useRef("fileInput");
+            this.fileInputRef = signal.ref();
 
             useBus(this.env.bus, "change_file_input", async (ev) => {
-                this.fileInput.el.files = ev.detail.files;
-                await this.onChangeFileInput();
+                await this.uploadFiles(ev.detail.files);
             });
         },
 
         uploadDocument() {
-            this.fileInput.el.click();
+            this.fileInputRef()?.click();
         },
 
         async onChangeFileInput() {
-            const self = this;
-            const controllerID = this.actionService.currentController.jsId;
-            // Search the correct directory_id value according to the domain
-            let directory_id = false;
-            if (this.props.domain) {
-                for (const domain_item of this.props.domain) {
-                    if (domain_item.length === 3) {
-                        if (
-                            domain_item[0] === "directory_id" &&
-                            ["=", "child_of"].includes(domain_item[1])
-                        ) {
-                            directory_id = domain_item[2];
-                        }
-                    }
+            const input = this.fileInputRef();
+            if (!input) {
+                return;
+            }
+            const files = [...input.files];
+            // Vider le champ : sinon choisir à nouveau le même fichier ne
+            // déclenche pas « change ».
+            input.value = "";
+            await this.uploadFiles(files);
+        },
+
+        _getUploadDirectoryId() {
+            // Le répertoire vient du domaine de l'action ou du panneau de recherche.
+            for (const item of this.props.domain || []) {
+                if (
+                    Array.isArray(item) &&
+                    item.length === 3 &&
+                    item[0] === "directory_id" &&
+                    ["=", "child_of"].includes(item[1])
+                ) {
+                    return item[2];
                 }
             }
+            return false;
+        },
 
+        async uploadFiles(files) {
+            if (!files || !files.length) {
+                return;
+            }
+            const directory_id = this._getUploadDirectoryId();
             if (directory_id === false) {
-                self.actionService.restore(controllerID);
-                return self.notification.add(_t("You must select a directory first"), {
+                return this.notification.add(_t("You must select a directory first"), {
                     type: "danger",
                 });
             }
-
-            const params = {
-                csrf_token: odoo.csrf_token,
-                ufile: [...this.fileInput.el.files],
-                directory_id: directory_id,
-            };
-
             const fileData = await this.http.post(
                 "/web/binary/upload_dms_file",
-                params,
+                {
+                    csrf_token: odoo.csrf_token,
+                    ufile: [...files],
+                    directory_id: directory_id,
+                },
                 "text"
             );
-            const result = JSON.parse(fileData);
-            if (result.error) {
-                throw new Error(result.error);
+            // La route renvoie une entrée par fichier ({error} ou {id, …}).
+            const results = [].concat(JSON.parse(fileData));
+            await this.model.load();
+            for (const result of results) {
+                if (result.error) {
+                    this.notification.add(result.error, {type: "danger"});
+                }
             }
-            self.actionService.restore(controllerID);
         },
     };
 }
