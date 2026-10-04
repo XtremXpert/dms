@@ -2,7 +2,6 @@
 # Copyright 2024 Tecnativa - Víctor Martínez
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
 
-from odoo import fields
 from odoo.exceptions import UserError, ValidationError
 from odoo.tests import new_test_user
 from odoo.tools import mute_logger
@@ -11,13 +10,17 @@ from odoo.addons.base.tests.common import BaseCommon
 
 
 class TestDmsField(BaseCommon):
+    # Odoo 20 : BaseCommon bascule chaque test sur un utilisateur de test ; ces
+    # tests préparent leurs données en superutilisateur, comme en 18.0.
+    _test_user_groups = None
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.env = cls.env(context=dict(cls.env.context, test_dms_field=True))
         cls.user_a = new_test_user(cls.env, login="test-user-a")
         cls.group = cls.env["res.groups"].create(
-            {"name": "Test group", "users": [(4, cls.user_a.id)]}
+            {"name": "Test group", "user_ids": [(4, cls.user_a.id)]}
         )
         cls.user_b = new_test_user(cls.env, login="test-user-b")
         cls.template = cls.env.ref("dms_field.field_template_partner")
@@ -162,9 +165,9 @@ class TestDmsField(BaseCommon):
 
     def test_creation_process_01_with_parent(self):
         self.assertFalse(self.partner.dms_directory_ids)
-        self.template.parent_directory_id = fields.first(
-            self.template.storage_id.root_directory_ids
-        )
+        self.template.parent_directory_id = self.template.storage_id.root_directory_ids[
+            :1
+        ]
         template = self.env["dms.field.template"].with_context(
             res_model=self.partner._name, res_id=self.partner.id
         )
@@ -197,9 +200,9 @@ class TestDmsField(BaseCommon):
         self.assertFalse(partner_2.dms_directory_ids)
 
     def test_creation_process_02_with_parent(self):
-        self.template.parent_directory_id = fields.first(
-            self.template.storage_id.root_directory_ids
-        )
+        self.template.parent_directory_id = self.template.storage_id.root_directory_ids[
+            :1
+        ]
         partner_1 = self.env["res.partner"].create({"name": "Test partner 1"})
         partner_1.invalidate_model()
         directory_1 = partner_1.dms_directory_ids[0]
@@ -278,3 +281,57 @@ class TestDmsField(BaseCommon):
         )
         self.assertTrue(new_subdirectory_2.inherit_group_ids)
         self.assertIn(self.group, new_subdirectory_2.complete_group_ids.group_ids)
+
+    def test_parents_hidden_parent(self):
+        """Un sous-répertoire dont le parent n'est pas dans le résultat est
+        lui-même de premier niveau (le parent pourrait être illisible)."""
+        root = self.env["dms.directory"].create(
+            self._create_directory_vals(self.partner)
+        )
+        child = self.env["dms.directory"].create(
+            {"name": "Enfant", "parent_id": root.id, "storage_id": self.storage.id}
+        )
+        Directory = self.env["dms.directory"]
+        self.assertEqual(Directory.search_parents([("id", "in", child.ids)]), child)
+        self.assertEqual(
+            Directory.search_parents([("id", "in", (root | child).ids)]), root
+        )
+        self.assertEqual(
+            Directory.search_parents([("id", "in", (root | child).ids)], count=True), 1
+        )
+        self.assertFalse(Directory.search_parents([("id", "in", [])]))
+
+    def test_form_view_embeds_dms_list(self):
+        """La sous-vue <dms_list> du champ est analysée avec dms.directory."""
+        arch = self.env["res.partner"].get_views([(False, "form")])["views"]["form"][
+            "arch"
+        ]
+        self.assertIn("<dms_list", arch)
+        self.assertIn('mode="dms_list"', arch)
+        views = self.env["dms.storage"].get_views([(False, "dms_list")])
+        self.assertIn("dms_list", views["views"])
+
+    def test_storage_without_models_can_change_type(self):
+        """Un stockage sans modèle lié garde des répertoires « libres » et
+        peut changer de type (ex. base de données -> fichier)."""
+        storage = self.env["dms.storage"].create(
+            {"name": "Stockage libre", "save_type": "database"}
+        )
+        self.env["dms.directory"].create(
+            {
+                "name": "Racine libre",
+                "is_root_directory": True,
+                "storage_id": storage.id,
+                "group_ids": [(6, 0, self.template.group_ids.ids)],
+            }
+        )
+        storage.write({"save_type": "file"})
+        self.assertEqual(storage.save_type, "file")
+
+    def test_storage_models_inconsistent_directory(self):
+        """Avec des modèles liés, une racine d'un autre modèle est refusée."""
+        directory = self.env["dms.directory"].create(
+            self._create_directory_vals(self.partner)
+        )
+        with self.assertRaises(ValidationError):
+            directory.storage_id.model_ids = self.env.ref("base.model_res_users")

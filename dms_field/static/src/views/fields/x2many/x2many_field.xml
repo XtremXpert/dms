@@ -7,9 +7,11 @@
         t-inherit-mode="extension"
     >
         <xpath expr="//ListRenderer" position="after">
-            <DmsListRenderer
-                t-elif="props.viewMode == 'dms_list'"
-                t-props="rendererProps"
+            <DmsTree
+                t-elif="this.props.viewMode === 'dms_list'"
+                resModel="this.props.record.resModel"
+                resId="this.props.record.resId || false"
+                readonly="this.props.readonly"
             />
         </xpath>
     </t>

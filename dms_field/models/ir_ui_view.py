@@ -1,9 +1,7 @@
 # Copyright 2020 Creu Blanca
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
 
-from odoo import _, fields, models
-
-from odoo.addons.base.models.ir_ui_view import NameManager
+from odoo import fields, models
 
 
 class IrUiView(models.Model):
@@ -13,48 +11,23 @@ class IrUiView(models.Model):
 
     def _get_view_info(self):
         res = super()._get_view_info()
-        res["dms_list"] = {"icon": "fa fa-file-o"}
+        res["dms_list"] = {"icon": "folder"}
         return res
 
-    def _postprocess_tag_dms_list(self, node, name_manager, node_info):
-        parent = node.getparent()
-        if parent is not None and (parent_name := parent.get("name")):
-            field = name_manager.model._fields.get(parent_name)
-            if field:
-                group_definitions = self.env["res.groups"]._get_group_definitions()
-                model_groups = (
-                    node_info["model_groups"]
-                    if node_info
-                    else group_definitions.universe
-                )
-                view_groups = (
-                    node_info["view_groups"]
-                    if node_info
-                    else group_definitions.universe
-                )
-                model_name = field.comodel_name
-                if model_name not in self.env:
-                    self._raise_view_error(
-                        _("Model not found: %(model)s", model=model_name), node
+    def _postprocess_tag_field(self, node, name_manager, node_info):
+        """Odoo 20 ne traite comme sous-vues que form/list/graph/kanban/calendar :
+        une sous-vue <dms_list> d'un champ x2many doit aussi être analysée avec
+        le modèle lié, sinon ses champs seraient cherchés sur le modèle parent."""
+        res = super()._postprocess_tag_field(node, name_manager, node_info)
+        field = name_manager.model._fields.get(node.get("name") or "")
+        if field and field.relational:
+            for child in node:
+                if child.tag == "dms_list":
+                    node_info["children"] = []
+                    self._postprocess_view(
+                        child,
+                        field.comodel_name,
+                        editable=node_info["editable"],
+                        node_info=node_info,
                     )
-                model = self.env[model_name]
-                model_groups &= self.env["ir.model.access"]._get_access_groups(
-                    model_name
-                )
-                new_name_manager = NameManager(
-                    model, parent=name_manager, model_groups=model_groups
-                )
-                root_info = {
-                    "view_type": node.tag,
-                    "view_editable": self._editable_node(node, name_manager),
-                    "model_groups": model_groups,
-                    "view_groups": view_groups,
-                    "name_manager": name_manager,
-                }
-                new_node_info = dict(
-                    root_info,
-                    modifiers={},
-                    editable=self._editable_node(node, new_name_manager),
-                )
-                for child in node:
-                    self._postprocess_tag_field(child, new_name_manager, new_node_info)
+        return res

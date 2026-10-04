@@ -1,0 +1,48 @@
+.o_dms_tree {
+    min-height: 12rem;
+
+    .o_dms_tree_nav {
+        min-width: 0;
+    }
+
+    .o_dms_tree_preview {
+        flex: 0 0 45%;
+        min-width: 0;
+    }
+
+    .o_dms_tree_node {
+        cursor: pointer;
+        min-height: 1.9rem;
+        user-select: none;
+
+        &:hover {
+            background-color: $o-gray-100;
+        }
+
+        &.o_dms_tree_selected {
+            background-color: rgba($o-action, 0.15);
+        }
+
+        &.o_dms_tree_drop {
+            outline: 2px dashed $o-action;
+            background-color: rgba($o-action, 0.08);
+        }
+    }
+
+    .o_dms_tree_caret {
+        display: inline-block;
+        width: 1rem;
+        flex: 0 0 1rem;
+        text-align: center;
+    }
+
+    .o_dms_tree_rename {
+        max-width: 20rem;
+    }
+
+    .o_dms_tree_icon {
+        width: 4rem;
+        height: 4rem;
+        object-fit: contain;
+    }
+}

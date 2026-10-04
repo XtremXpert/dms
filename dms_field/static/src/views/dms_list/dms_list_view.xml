@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+    <t t-name="dms_field.View">
+        <Layout display="this.props.display" className="'h-100 overflow-auto'">
+            <div class="o_dms_list_view p-3">
+                <DmsTree
+                    rootModel="this.props.resModel"
+                    rootDomain="this.props.domain"
+                />
+            </div>
+        </Layout>
+    </t>
+</templates>

@@ -2,9 +2,9 @@
 # Copyright 2025 Simone Rubino - PyTech
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
 
-from odoo import _, api, fields, models
+from odoo import api, fields, models
 from odoo.exceptions import UserError
-from odoo.osv import expression
+from odoo.fields import Domain
 
 
 class DmsAccessGroups(models.Model):
@@ -53,7 +53,7 @@ class DmsAccessGroups(models.Model):
     @api.constrains("dms_field_ref")
     def _check_dms_field_ref(self):
         for item in self.filtered("dms_field_ref"):
-            domain = expression.AND(
+            domain = Domain.AND(
                 [
                     item._get_domain_for_item_from_dms_field_ref(item.dms_field_ref),
                     [("id", "!=", item.id)],
@@ -61,5 +61,7 @@ class DmsAccessGroups(models.Model):
             )
             if self.search(domain):
                 raise UserError(
-                    _("There is already an access group created for this record.")
+                    self.env._(
+                        "There is already an access group created for this record."
+                    )
                 )

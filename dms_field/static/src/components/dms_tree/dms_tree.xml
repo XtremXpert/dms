@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+
+    <t t-name="dms_field.DmsTree">
+        <div class="o_dms_tree d-flex flex-column flex-md-row gap-3">
+            <div class="o_dms_tree_nav flex-grow-1">
+                <div t-if="!this.state.loaded" class="text-muted p-2">
+                    <i class="oi oi-spin me-1" data-icon="refresh" />Loading…
+                </div>
+                <t t-elif="!this.state.roots.length">
+                    <div class="text-muted p-2">
+                        <t t-if="this.isRecordMode and !this.props.resId">
+                            Save the record to manage its documents.
+                        </t>
+                        <t t-else="">No documents.</t>
+                    </div>
+                    <button
+                        t-if="this.state.canCreateRecordDirectory and !this.readonly"
+                        type="button"
+                        class="btn btn-secondary o_dms_add_directory"
+                        t-on-click="() => this.createRecordDirectory()"
+                    >
+                        <i class="oi me-1" data-icon="folder" />Create the document directory
+                    </button>
+                </t>
+                <ul t-else="" class="o_dms_tree_list list-unstyled mb-0" role="tree">
+                    <t t-foreach="this.state.roots" t-as="node" t-key="node.key">
+                        <t t-call="dms_field.DmsTree.Node" />
+                    </t>
+                </ul>
+            </div>
+            <div class="o_dms_tree_preview" t-if="this.state.selected">
+                <t t-call="dms_field.DmsTree.Preview" />
+            </div>
+            <input
+                type="file"
+                multiple="multiple"
+                class="d-none"
+                t-ref="this.fileInput"
+                t-on-change="(ev) => this.onFileInputChange(ev)"
+            />
+        </div>
+    </t>
+
+    <t t-name="dms_field.DmsTree.Node">
+        <li role="treeitem" t-att-aria-expanded="node.hasChildren ? (node.open ? 'true' : 'false') : undefined">
+            <div
+                class="o_dms_tree_node d-flex align-items-center rounded px-1"
+                t-att-class="{
+                    'o_dms_tree_selected': this.isSelected(node),
+                    'o_dms_tree_drop': this.state.dropTarget === node.key,
+                }"
+                t-att-data-key="node.key"
+                t-on-click="() => this.select(node)"
+                t-on-dblclick="() => this.onNodeDblClick(node)"
+                t-on-dragover="(ev) => this.onDragOver(ev, node)"
+                t-on-dragleave="(ev) => this.onDragLeave(ev, node)"
+                t-on-drop="(ev) => this.onDrop(ev, node)"
+            >
+                <span
+                    class="o_dms_tree_caret"
+                    t-on-click.stop="() => this.toggle(node)"
+                >
+                    <i
+                        t-if="node.hasChildren"
+                        class="oi"
+                        t-att-data-icon="node.open ? 'arrow_drop_down' : 'arrow_right'"
+                    />
+                </span>
+                <i
+                    class="oi me-2"
+                    t-att-class="{'oi-filled': node.open}"
+                    t-att-data-icon="this.iconName(node)"
+                />
+                <input
+                    t-if="this.state.renaming and this.state.renaming.key === node.key"
+                    class="o_input o_dms_tree_rename"
+                    t-ref="this.renameInput"
+                    t-att-value="this.state.renameValue"
+                    t-on-input="(ev) => this.onRenameInput(ev)"
+                    t-on-keydown="(ev) => this.onRenameKeydown(ev)"
+                    t-on-blur="() => this.confirmRename()"
+                    t-on-click.stop=""
+                />
+                <span t-else="" class="o_dms_tree_label text-truncate" t-out="node.name" />
+            </div>
+            <ul
+                t-if="node.open and node.children and node.children.length"
+                class="list-unstyled ps-3 mb-0"
+                role="group"
+            >
+                <t t-foreach="node.children" t-as="node" t-key="node.key">
+                    <t t-call="dms_field.DmsTree.Node" />
+                </t>
+            </ul>
+        </li>
+    </t>
+
+    <t t-name="dms_field.DmsTree.Preview">
+        <t t-set="node" t-value="this.state.selected" />
+        <div class="o_dms_tree_card card">
+            <div class="card-body">
+                <div class="d-flex gap-3 align-items-start">
+                    <img
+                        t-if="node.data.icon_url"
+                        class="o_dms_tree_icon"
+                        t-att-src="node.data.icon_url"
+                        alt=""
+                    />
+                    <div class="flex-grow-1 text-break">
+                        <h4 class="mb-2" t-out="node.name" />
+                        <t t-if="node.model === 'dms.directory'">
+                            <div><b>Subdirectories:</b> <t t-out="node.data.count_total_directories" /></div>
+                            <div><b>Files:</b> <t t-out="node.data.count_total_files" /></div>
+                            <div t-if="node.data.human_size"><b>Size:</b> <t t-out="node.data.human_size" /></div>
+                        </t>
+                        <t t-if="node.model === 'dms.file'">
+                            <div t-if="node.data.human_size"><b>Size:</b> <t t-out="node.data.human_size" /></div>
+                            <div t-if="node.data.is_locked" class="text-warning">
+                                <i class="oi me-1" data-icon="lock" />Locked
+                            </div>
+                        </t>
+                    </div>
+                </div>
+                <div class="o_dms_tree_actions d-flex flex-wrap gap-1 mt-3">
+                    <t t-if="node.model === 'dms.directory' and !this.readonly">
+                        <button
+                            type="button"
+                            class="btn btn-primary o_dms_tree_upload"
+                            t-att-disabled="!node.perms.create"
+                            t-on-click="() => this.pickFiles()"
+                        ><i class="oi me-1" data-icon="upload" />Upload</button>
+                        <button
+                            type="button"
+                            class="btn btn-secondary o_dms_tree_add_directory"
+                            t-att-disabled="!node.perms.create"
+                            t-on-click="() => this.addDirectory(node)"
+                        ><i class="oi me-1" data-icon="folder" />Create directory</button>
+                        <button
+                            type="button"
+                            class="btn btn-secondary o_dms_tree_add_file"
+                            t-att-disabled="!node.perms.create"
+                            t-on-click="() => this.addFile(node)"
+                        ><i class="oi me-1" data-icon="description" />Create file</button>
+                    </t>
+                    <t t-if="node.model === 'dms.file'">
+                        <button
+                            type="button"
+                            class="btn btn-primary o_dms_tree_preview_file"
+                            t-on-click="() => this.preview(node)"
+                        ><i class="oi me-1" data-icon="visibility" />Preview</button>
+                        <a
+                            class="btn btn-secondary o_dms_tree_download"
+                            t-att-href="this.downloadUrl(node)"
+                        ><i class="oi me-1" data-icon="download" />Download</a>
+                    </t>
+                    <t t-if="node.model !== 'dms.storage' and !this.readonly">
+                        <button
+                            type="button"
+                            class="btn btn-secondary o_dms_tree_rename_btn"
+                            t-att-disabled="!node.perms.write"
+                            t-on-click="() => this.startRename(node)"
+                        ><i class="oi me-1" data-icon="edit" />Rename</button>
+                        <button
+                            type="button"
+                            class="btn btn-secondary o_dms_tree_delete"
+                            t-att-disabled="!node.perms.unlink"
+                            t-on-click="() => this.remove(node)"
+                        ><i class="oi me-1" data-icon="delete" />Delete</button>
+                    </t>
+                    <button
+                        type="button"
+                        class="btn btn-link o_dms_tree_open"
+                        t-on-click="() => this.openRecord(node)"
+                    ><i class="oi me-1" data-icon="open_in_new" />Open</button>
+                </div>
+                <div
+                    t-if="node.model === 'dms.directory' and node.perms.create and !this.readonly"
+                    class="text-muted small mt-2"
+                >
+                    <i class="oi me-1" data-icon="info" />You can also drop files on a directory.
+                </div>
+            </div>
+        </div>
+    </t>
+
+</templates>
