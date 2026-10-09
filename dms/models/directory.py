@@ -15,6 +15,7 @@ from typing import Literal  # noqa # pylint: disable=unused-import
 from odoo import api, fields, models, tools
 from odoo.exceptions import UserError, ValidationError
 from odoo.fields import Domain
+from odoo.tools import SQL
 from odoo.tools import consteq, human_size
 
 from ..tools.file import check_name, unique_name
@@ -210,14 +211,21 @@ class DmsDirectory(models.Model):
     )
 
     @api.model
-    def _get_domain_by_access_groups(self, operation):
+    def _get_domain_by_access_groups(self, operation, materialize=False):
         """Special rules for directories."""
+        directories = self._get_access_groups_query(operation)
+        if materialize:
+            # Odoo 20 : domaine évalué en Python (voir le mixin)
+            self.env.cr.execute(SQL("SELECT aid FROM %s AS q", directories))
+            directories = [row[0] for row in self.env.cr.fetchall()]
         self_filter = [
             ("storage_id_inherit_access_from_parent_record", "=", False),
-            ("id", "in", self._get_access_groups_query(operation)),
+            ("id", "in", directories),
         ]
         # Upstream only filters by parent directory
-        result = super()._get_domain_by_access_groups(operation)
+        result = super()._get_domain_by_access_groups(
+            operation, materialize=materialize
+        )
         if operation == "create":
             # When creating, I need create access in parent directory, or
             # self-create permission if it's a root directory
@@ -657,7 +665,7 @@ class DmsDirectory(models.Model):
                 "name": uname,
             }
             try:
-                vals["content"] = base64.b64encode(attachment.content)
+                vals["content"] = base64.b64encode(attachment.content).decode()
             except Exception:
                 vals["content"] = attachment.content
             self.env["dms.file"].sudo().create(vals)
@@ -673,7 +681,7 @@ class DmsDirectory(models.Model):
         # Hack to prevent error related to mail_message parent not exists in some cases
         ctx = dict(self.env.context).copy()
         ctx.update({"default_parent_id": False})
-        self.env.registry.clear_cache()
+        self.env.transaction.invalidate_ormcache()  # API Odoo 20
         res = super(DmsDirectory, self.with_context(**ctx)).create(vals_list)
         return res
 

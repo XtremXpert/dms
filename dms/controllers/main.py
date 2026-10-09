@@ -16,7 +16,7 @@ class OnboardingController(http.Controller):
     def forbidden_extensions(self, **_kwargs):
         params = request.env["ir.config_parameter"].sudo()
         return {
-            "forbidden_extensions": params.get_param(
+            "forbidden_extensions": params.get_str(
                 "dms.forbidden_extensions", default=""
             )
         }

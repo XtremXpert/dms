@@ -129,5 +129,5 @@ class Storage(models.Model):
     def write(self, values):
         res = super().write(values)
         if "model_ids" in values:
-            self.env.registry.clear_cache()
+            self.env.transaction.invalidate_ormcache()  # API Odoo 20
         return res

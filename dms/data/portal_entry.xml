@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Odoo 20 : les cartes de la page d'accueil du portail sont des enregistrements portal.entry
+     (plus d'héritage de portal.portal_my_home). -->
+<odoo noupdate="1">
+    <record id="portal_entry_dms" model="portal.entry">
+        <field name="name">Documents</field>
+        <field name="description">Manage your documents</field>
+        <field name="url">/my/dms</field>
+        <field name="image" type="bytes" file="dms/static/description/portal_icon.svg" />
+        <field name="placeholder_count">dms_directory_count</field>
+        <field name="category">common_category</field>
+        <field name="sequence" eval="60" />
+    </record>
+</odoo>

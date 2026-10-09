@@ -223,7 +223,8 @@ class DMSFile(models.Model):
         if self.storage_id.save_type in ["file", "attachment"]:
             new_vals["content_file"] = self.content
         else:
-            new_vals["content_binary"] = self.content and binary
+            # Odoo 20 : un champ Binary reçoit une BinaryValue (ou du base64 texte)
+            new_vals["content_binary"] = self.content or False
         return new_vals
 
     @api.model
@@ -231,12 +232,12 @@ class DMSFile(models.Model):
         return int(
             self.env["ir.config_parameter"]
             .sudo()
-            .get_param("dms.binary_max_size", default=25)
+            .get_str("dms.binary_max_size", default=25)
         )
 
     @api.model
     def _get_forbidden_extensions(self):
-        get_param = self.env["ir.config_parameter"].sudo().get_param
+        get_param = self.env["ir.config_parameter"].sudo().get_str
         extensions = get_param("dms.forbidden_extensions", default="")
         return [extension.strip() for extension in extensions.split(",")]
 
@@ -442,7 +443,8 @@ class DMSFile(models.Model):
     @api.depends("content")
     def _compute_mimetype(self):
         for record in self:
-            binary = base64.b64decode(record.content or "")
+            # Odoo 20 : un champ Binary renvoie les octets bruts (BinaryValue)
+            binary = bytes(record.content or b"")
             record.mimetype = guess_mimetype(binary)
 
     @api.depends("size")
@@ -454,18 +456,13 @@ class DMSFile(models.Model):
     def _compute_content(self):
         bin_size = self.env.context.get("bin_size", False)
         for record in self:
+            # Odoo 20 : les champs Binary échangent des BinaryValue, plus de base64 à produire
             if record.content_file:
-                context = {"human_size": True} if bin_size else {"base64": True}
-                record.content = record.with_context(**context).content_file
+                record.content = record.content_file
             elif record.content_binary:
-                record.content = (
-                    record.content_binary
-                    if bin_size
-                    else base64.b64encode(record.content_binary)
-                )
+                record.content = record.content_binary
             elif record.attachment_id:
-                context = {"human_size": True} if bin_size else {"base64": True}
-                record.content = record.with_context(**context).attachment_id.datas
+                record.content = record.attachment_id.raw  # Odoo 20 : plus de datas
 
     @api.depends("content_binary", "content_file")
     def _compute_save_type(self):
@@ -553,7 +550,7 @@ class DMSFile(models.Model):
         updates = defaultdict(set)
         for record in self:
             values = self._get_content_inital_vals()
-            binary = base64.b64decode(record.content or "")
+            binary = bytes(record.content or b"")
             values = record._update_content_vals(values, binary)
             updates[tools.frozendict(values)].add(record.id)
         for vals, ids in updates.items():
