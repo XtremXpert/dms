@@ -12,4 +12,3 @@ export class FileListRenderer extends ListRenderer {
         super.setup();
     }
 }
-

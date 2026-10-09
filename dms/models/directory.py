@@ -15,8 +15,7 @@ from typing import Literal  # noqa # pylint: disable=unused-import
 from odoo import api, fields, models, tools
 from odoo.exceptions import UserError, ValidationError
 from odoo.fields import Domain
-from odoo.tools import SQL
-from odoo.tools import consteq, human_size
+from odoo.tools import SQL, consteq, human_size
 
 from ..tools.file import check_name, unique_name
 

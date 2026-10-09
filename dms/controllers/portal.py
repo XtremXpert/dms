@@ -1,7 +1,6 @@
 # Copyright 2020-2021 Tecnativa - Víctor Martínez
 # Copyright 2024 Subteno - Timothée VANNIER (https://www.subteno.com).
 # License LGPL-3.0 or later (https://www.gnu.org/licenses/lgpl).
-import base64
 from typing import Optional  # noqa # pylint: disable=unused-import
 
 from odoo import http

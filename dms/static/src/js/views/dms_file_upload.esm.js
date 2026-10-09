@@ -1,10 +1,9 @@
-/** @odoo-module **/
 /*
     Portage Odoo 20 / Owl 3 : proxy() au lieu de useState, signal.ref() au lieu
     de useRef, useEffect à dépendances implicites.
 */
-import {useBus, useService} from "@web/core/utils/hooks";
 import {proxy, signal, useEffect} from "@odoo/owl";
+import {useBus, useService} from "@web/core/utils/hooks";
 import {_t} from "@web/core/l10n/translation";
 
 export function createFileDropZoneExtension() {

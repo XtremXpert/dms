@@ -4,7 +4,6 @@
 # Copyright 2024 Subteno - Timothée Vannier (https://www.subteno.com).
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
 
-import base64
 import hashlib
 import json
 import logging
@@ -457,15 +456,14 @@ class DMSFile(models.Model):
 
     @api.depends("content_binary", "content_file", "attachment_id")
     def _compute_content(self):
-        bin_size = self.env.context.get("bin_size", False)
         for record in self:
-            # Odoo 20 : les champs Binary échangent des BinaryValue, plus de base64 à produire
+            # Odoo 20: Binary fields hold BinaryValue objects, no base64 needed
             if record.content_file:
                 record.content = record.content_file
             elif record.content_binary:
                 record.content = record.content_binary
             elif record.attachment_id:
-                record.content = record.attachment_id.raw  # Odoo 20 : plus de datas
+                record.content = record.attachment_id.raw  # Odoo 20: no "datas"
 
     @api.depends("content_binary", "content_file")
     def _compute_save_type(self):

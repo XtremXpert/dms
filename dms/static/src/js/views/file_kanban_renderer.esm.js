@@ -16,4 +16,3 @@ export class FileKanbanRenderer extends KanbanRenderer {
         super.setup();
     }
 }
-

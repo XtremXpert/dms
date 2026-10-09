@@ -171,7 +171,8 @@ class DocumentsBaseCase(BaseCommon):
                 "name": name,
                 "res_model": res_model,
                 "res_id": res_id,
-                "raw": base64.b64decode(content or cls.content_base64()),  # Odoo 20 : plus de datas
+                # Odoo 20: ir.attachment has no "datas" field any more
+                "raw": base64.b64decode(content or cls.content_base64()),
             }
         )
 
