@@ -87,6 +87,18 @@ class TestDmsPortal(odoo.tests.HttpCase, StorageAttachmentBaseCase):
             response.status_code, 200, "Can access directory with correct access_token"
         )
 
+    def test_portal_counter(self):
+        """The portal home "Documents" card relies on /my/counters.
+
+        Odoo 20 computes each counter through _prepare_portal_counter_values;
+        the former _prepare_home_portal_values override was never called, so
+        the counter was always 0 and the card stayed hidden.
+        """
+        counters = {"dms_directory_count": "common_category"}
+        self.authenticate("portal", "portal")
+        res = self.make_jsonrpc_request("/my/counters", {"counters": counters})
+        self.assertTrue(res["dms_directory_count"])
+
     def test_tour(self):
         for tour in ("dms_portal_mail_tour", "dms_portal_partners_tour"):
             with self.subTest(tour=tour):
