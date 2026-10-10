@@ -6,12 +6,13 @@ import {FileKanbanRecord} from "./file_kanban_record.esm";
 import {KanbanRenderer} from "@web/views/kanban/kanban_renderer";
 
 export class FileKanbanRenderer extends KanbanRenderer {
+    static template = "dms.KanbanRenderer";
+    static components = {
+        ...KanbanRenderer.components,
+        KanbanRecord: FileKanbanRecord,
+    };
+
     setup() {
         super.setup();
     }
 }
-
-FileKanbanRenderer.components = {
-    ...KanbanRenderer.components,
-    KanbanRecord: FileKanbanRecord,
-};

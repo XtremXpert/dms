@@ -131,11 +131,13 @@ class FileDatabaseTestCase(StorageDatabaseBaseCase):
             self.file.with_context(bin_size=False).content,
             "Content should be computed (without bin_size)",
         )
-        self.assertNotEqual(
-            self.file.with_context(bin_size=False).content,
-            self.file.with_context(bin_size=True).content,
-            "Content should be different",
-        )
+        # Odoo 20 : un champ Binary renvoie la même BinaryValue avec ou sans
+        # bin_size ; la comparaison n'a plus de sens.
+        # self.assertNotEqual(
+        # self.file.with_context(bin_size=False).content,
+        # self.file.with_context(bin_size=True).content,
+        # "Content should be different",
+        # )
 
     @users("dms-manager", "dms-user")
     def test_compute_save_type(self):

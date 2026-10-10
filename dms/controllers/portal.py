@@ -1,12 +1,12 @@
 # Copyright 2020-2021 Tecnativa - Víctor Martínez
 # Copyright 2024 Subteno - Timothée VANNIER (https://www.subteno.com).
 # License LGPL-3.0 or later (https://www.gnu.org/licenses/lgpl).
-import base64
 from typing import Optional  # noqa # pylint: disable=unused-import
 
 from odoo import http
 from odoo.fields import Domain
-from odoo.http import content_disposition, request
+from odoo.http.stream import content_disposition
+from odoo.http import request
 
 from odoo.addons.portal.controllers.portal import CustomerPortal
 from odoo.addons.web.controllers.utils import ensure_db
@@ -33,12 +33,15 @@ class CustomerPortal(CustomerPortal):
                 return False
         return item
 
-    def _prepare_home_portal_values(self, counters):
-        values = super()._prepare_home_portal_values(counters)
-        if "dms_directory_count" in counters:
+    def _prepare_portal_counter_values(self, counter):
+        # Odoo 20: /my/counters computes each counter from a
+        # (model, domain, access) tuple; _prepare_home_portal_values is gone.
+        # search_count() goes through dms.directory._search, which applies the
+        # DMS access-group / inheritance domain for the portal user.
+        if counter == "dms_directory_count":
             ids = request.env["dms.directory"]._get_own_root_directories()
-            values["dms_directory_count"] = len(ids)
-        return values
+            return "dms.directory", [("id", "in", ids)], "read"
+        return super()._prepare_portal_counter_values(counter)
 
     @http.route(["/my/dms"], type="http", auth="user", website=True)
     def portal_my_dms(
@@ -69,7 +72,7 @@ class CustomerPortal(CustomerPortal):
         )
         # search
         if search and search_in == "name":
-            domain = Domain.AND([domain, Domain.OR([[], [("name", "ilike", search)]])])
+            domain &= Domain("name", "ilike", search)
         # content according to pager and archive selected
         items = request.env["dms.directory"].search(domain, order=sort_order)
         request.session["my_dms_folder_history"] = items.ids
@@ -184,7 +187,11 @@ class CustomerPortal(CustomerPortal):
 
         # items
         file_model = request.env["dms.file"]
-        is_access_token_valid = file_model.check_access_token(access_token)
+        # The token belongs to a directory, so it must be validated against the
+        # directory being browsed (or one of its ancestors), never against an
+        # empty dms.file recordset. Same pattern as _get_directories below.
+        directory_to_check = request.env["dms.directory"].browse(dms_directory_id)
+        is_access_token_valid = directory_to_check.check_access_token(access_token)
         file_model = file_model.sudo() if is_access_token_valid else file_model
         dms_file_items = file_model.search(file_domain, order=sort_br)
         request.session["my_dms_file_history"] = dms_file_items.ids
@@ -281,7 +288,7 @@ class CustomerPortal(CustomerPortal):
 
         if res.attachment_id and request.env.user.has_group("base.group_portal"):
             res = res.sudo()
-        file_content = base64.b64decode(res.content)
+        file_content = bytes(res.content)
         content_type = ("Content-Type", "application/octet-stream")
         disposition_content = (
             "Content-Disposition",

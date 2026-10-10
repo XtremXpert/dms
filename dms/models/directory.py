@@ -15,7 +15,7 @@ from typing import Literal  # noqa # pylint: disable=unused-import
 from odoo import api, fields, models, tools
 from odoo.exceptions import UserError, ValidationError
 from odoo.fields import Domain
-from odoo.tools import consteq, human_size
+from odoo.tools import SQL, consteq, human_size
 
 from ..tools.file import check_name, unique_name
 
@@ -210,14 +210,21 @@ class DmsDirectory(models.Model):
     )
 
     @api.model
-    def _get_domain_by_access_groups(self, operation):
+    def _get_domain_by_access_groups(self, operation, materialize=False):
         """Special rules for directories."""
+        directories = self._get_access_groups_query(operation)
+        if materialize:
+            # Odoo 20 : domaine évalué en Python (voir le mixin)
+            self.env.cr.execute(SQL("SELECT aid FROM %s AS q", directories))
+            directories = [row[0] for row in self.env.cr.fetchall()]
         self_filter = [
             ("storage_id_inherit_access_from_parent_record", "=", False),
-            ("id", "in", self._get_access_groups_query(operation)),
+            ("id", "in", directories),
         ]
         # Upstream only filters by parent directory
-        result = super()._get_domain_by_access_groups(operation)
+        result = super()._get_domain_by_access_groups(
+            operation, materialize=materialize
+        )
         if operation == "create":
             # When creating, I need create access in parent directory, or
             # self-create permission if it's a root directory
@@ -241,25 +248,24 @@ class DmsDirectory(models.Model):
     def check_access_token(self, access_token=False):
         res = False
         if access_token:
-            items = (
+            token_directory = (
                 self.env["dms.directory"]
                 .sudo()
-                .search([("access_token", "=", access_token)])
+                .search([("access_token", "=", access_token)], limit=1)
             )
-            if items:
-                item = items[0]
-                if item.id == self.id:
-                    return True
+            if token_directory:
                 # sudo because the user might not usually have access to the record but
                 # now the token is valid.
+                # `seen` bounds the walk: _check_directory_recursion rejects
+                # cycles created through the ORM, but this path is reachable
+                # anonymously and must not hang on corrupted data.
                 directory_item = self.sudo()
-                while directory_item.parent_id:
-                    if directory_item.id == item.id:
+                seen = set()
+                while directory_item and directory_item.id not in seen:
+                    if directory_item.id == token_directory.id:
                         return True
+                    seen.add(directory_item.id)
                     directory_item = directory_item.parent_id
-                # Fix last level
-                if directory_item.id == item.id:
-                    return True
         return res
 
     @api.model
@@ -656,10 +662,9 @@ class DmsDirectory(models.Model):
                 "directory_id": self.id,
                 "name": uname,
             }
-            try:
-                vals["content"] = base64.b64encode(attachment.content)
-            except Exception:
-                vals["content"] = attachment.content
+            if isinstance(contents_raw := attachment.content, str):
+                contents_raw = contents_raw.encode()
+            vals["content"] = base64.b64encode(contents_raw).decode()
             self.env["dms.file"].sudo().create(vals)
             names.append(uname)
 
@@ -673,7 +678,7 @@ class DmsDirectory(models.Model):
         # Hack to prevent error related to mail_message parent not exists in some cases
         ctx = dict(self.env.context).copy()
         ctx.update({"default_parent_id": False})
-        self.env.registry.clear_cache()
+        self.env.transaction.invalidate_ormcache()  # API Odoo 20
         res = super(DmsDirectory, self.with_context(**ctx)).create(vals_list)
         return res
 

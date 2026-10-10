@@ -4,7 +4,6 @@
 # Copyright 2024 Subteno - Timothée Vannier (https://www.subteno.com).
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
 
-import base64
 import hashlib
 import json
 import logging
@@ -167,23 +166,26 @@ class DMSFile(models.Model):
         if self.access_token and consteq(self.access_token, access_token):
             return True
 
-        items = (
+        token_directory = (
             self.env["dms.directory"]
             .sudo()
-            .search([("access_token", "=", access_token)])
+            .search([("access_token", "=", access_token)], limit=1)
         )
-        if items:
-            item = items[0]
-            if self.directory_id.id == item.id:
-                return True
-            directory_item = self.directory_id
-            while directory_item.parent_id:
-                if directory_item.id == self.directory_id.id:
+        if token_directory:
+            # The token is known to belong to some directory, but it is not yet
+            # valid for this file: it only is when that directory is the file's
+            # own directory or one of its ancestors. sudo() so the walk can
+            # traverse ancestors the caller is not allowed to read.
+            # `seen` bounds the walk: _check_directory_recursion rejects cycles
+            # created through the ORM, but this path is reachable anonymously
+            # and must not hang on corrupted data.
+            directory = self.sudo().directory_id
+            seen = set()
+            while directory and directory.id not in seen:
+                if directory.id == token_directory.id:
                     return True
-                directory_item = directory_item.parent_id
-            # Fix last level
-            if directory_item.id == self.directory_id.id:
-                return True
+                seen.add(directory.id)
+                directory = directory.parent_id
         return False
 
     res_model = fields.Char(
@@ -223,7 +225,8 @@ class DMSFile(models.Model):
         if self.storage_id.save_type in ["file", "attachment"]:
             new_vals["content_file"] = self.content
         else:
-            new_vals["content_binary"] = self.content and binary
+            # Odoo 20 : un champ Binary reçoit une BinaryValue (ou du base64 texte)
+            new_vals["content_binary"] = self.content or False
         return new_vals
 
     @api.model
@@ -231,12 +234,12 @@ class DMSFile(models.Model):
         return int(
             self.env["ir.config_parameter"]
             .sudo()
-            .get_param("dms.binary_max_size", default=25)
+            .get_str("dms.binary_max_size", default=25)
         )
 
     @api.model
     def _get_forbidden_extensions(self):
-        get_param = self.env["ir.config_parameter"].sudo().get_param
+        get_param = self.env["ir.config_parameter"].sudo().get_str
         extensions = get_param("dms.forbidden_extensions", default="")
         return [extension.strip() for extension in extensions.split(",")]
 
@@ -442,7 +445,8 @@ class DMSFile(models.Model):
     @api.depends("content")
     def _compute_mimetype(self):
         for record in self:
-            binary = base64.b64decode(record.content or "")
+            # Odoo 20 : un champ Binary renvoie les octets bruts (BinaryValue)
+            binary = bytes(record.content or b"")
             record.mimetype = guess_mimetype(binary)
 
     @api.depends("size")
@@ -452,20 +456,14 @@ class DMSFile(models.Model):
 
     @api.depends("content_binary", "content_file", "attachment_id")
     def _compute_content(self):
-        bin_size = self.env.context.get("bin_size", False)
         for record in self:
+            # Odoo 20: Binary fields hold BinaryValue objects, no base64 needed
             if record.content_file:
-                context = {"human_size": True} if bin_size else {"base64": True}
-                record.content = record.with_context(**context).content_file
+                record.content = record.content_file
             elif record.content_binary:
-                record.content = (
-                    record.content_binary
-                    if bin_size
-                    else base64.b64encode(record.content_binary)
-                )
+                record.content = record.content_binary
             elif record.attachment_id:
-                context = {"human_size": True} if bin_size else {"base64": True}
-                record.content = record.with_context(**context).attachment_id.datas
+                record.content = record.attachment_id.raw  # Odoo 20: no "datas"
 
     @api.depends("content_binary", "content_file")
     def _compute_save_type(self):
@@ -553,7 +551,7 @@ class DMSFile(models.Model):
         updates = defaultdict(set)
         for record in self:
             values = self._get_content_inital_vals()
-            binary = base64.b64decode(record.content or "")
+            binary = bytes(record.content or b"")
             values = record._update_content_vals(values, binary)
             updates[tools.frozendict(values)].add(record.id)
         for vals, ids in updates.items():
@@ -580,7 +578,9 @@ class DMSFile(models.Model):
                 .create(
                     {
                         "name": vals["name"],
-                        "datas": vals["content"],
+                        "raw": self._fields["content"].convert_to_cache(
+                            vals["content"], self
+                        ),
                         "res_model": directory.res_model,
                         "res_id": directory.res_id,
                     }

@@ -4,7 +4,6 @@
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
 
 
-import functools
 from logging import getLogger
 
 from odoo import api, fields, models
@@ -181,8 +180,16 @@ class DmsSecurityMixin(models.AbstractModel):
         return sql
 
     @api.model
-    def _get_domain_by_access_groups(self, operation):
-        """Get domain for records accessible applying DMS access groups."""
+    def _get_domain_by_access_groups(self, operation, materialize=False):
+        """Get domain for records accessible applying DMS access groups.
+
+        ``materialize=True`` remplace la sous-requête SQL par la liste des
+        dossiers accessibles : nécessaire quand le domaine est évalué en Python
+        (Odoo 20 évalue ``_access_domain`` par ``filtered_domain``)."""
+        directories = self._get_access_groups_query(operation)
+        if materialize:
+            self.env.cr.execute(SQL("SELECT aid FROM %s AS q", directories))
+            directories = [row[0] for row in self.env.cr.fetchall()]
         result = [
             (
                 f"{self._directory_field}.storage_id_inherit_access_from_parent_record",
@@ -192,21 +199,31 @@ class DmsSecurityMixin(models.AbstractModel):
             (
                 self._directory_field,
                 "in",
-                self._get_access_groups_query(operation),
+                directories,
             ),
         ]
         return result
 
     @api.model
-    def _get_dms_access_domain(self, operation):
+    def _get_dms_access_domain(self, operation, materialize=False):
         """Domain matching the records the current user may access for
         ``operation`` through DMS access groups or inheritance."""
         return Domain.OR(
             [
-                self._get_domain_by_access_groups(operation),
+                self._get_domain_by_access_groups(operation, materialize=materialize),
                 self._get_domain_by_inheritance(operation),
             ]
         )
+
+    @api.model
+    def _access_domain(self, operation):
+        """Odoo 20 : check_access/has_access/_filtered_access reposent sur
+        ``_access_domain`` (évalué en Python via filtered_domain) et non plus
+        sur ``_check_access`` : on y ajoute la restriction DMS."""
+        domain = super()._access_domain(operation)
+        if self.env.su or domain.is_false():
+            return domain
+        return domain & self._get_dms_access_domain(operation, materialize=True)
 
     @api.model
     def _get_permission_domain(self, operator, value, operation):
@@ -252,23 +269,6 @@ class DmsSecurityMixin(models.AbstractModel):
             )
         domain = Domain.AND([Domain(domain), self._get_dms_access_domain("read")])
         return super()._search(domain, offset, limit, order, **kwargs)
-
-    def _check_access(self, operation):
-        """Add the DMS access-group / inheritance restriction to the
-        record-level access check (mirrors ``mail.message._check_access``)."""
-        result = super()._check_access(operation)
-        if self.env.su or not any(self._ids):
-            return result
-        records = self - result[0] if result else self
-        forbidden = records._get_forbidden_dms_access(operation)
-        if forbidden:
-            if result:
-                return result[0] + forbidden, result[1]
-            Rule = self.env["ir.rule"]
-            return forbidden, functools.partial(
-                Rule._make_access_error, operation, forbidden
-            )
-        return result
 
     def _get_forbidden_dms_access(self, operation):
         """Return the subset of ``self`` the current user cannot access for
