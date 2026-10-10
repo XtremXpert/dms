@@ -578,7 +578,9 @@ class DMSFile(models.Model):
                 .create(
                     {
                         "name": vals["name"],
-                        "datas": vals["content"],
+                        "raw": self._fields["content"].convert_to_cache(
+                            vals["content"], self
+                        ),
                         "res_model": directory.res_model,
                         "res_id": directory.res_id,
                     }
