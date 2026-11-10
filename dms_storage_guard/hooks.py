@@ -27,22 +27,31 @@ REPORT_PARAM = "dms_storage_guard.last_report"
 ALLOW_DATABASE_PARAM = "dms_storage_guard.allow_database_storage"
 ATTACHMENT_LOCATION_PARAM = "ir_attachment.location"
 
-MIGRATION_STEPS = (
-    "Documents > Configuration > System > Storages: open the storage, set "
-    "'Storage Type' to 'Filestore' when it is 'Database', then run the "
-    "'Migrate' action. It rewrites every file of the storage, so plan it when "
-    "the users are idle."
-)
 
-LOCATION_STEPS = (
-    "Remove the 'ir_attachment.location' system parameter (or set it to "
-    "'file') in Settings > Technical > Parameters > System Parameters."
-)
+def _migration_steps(env):
+    """Remediation shown when a storage is not in the expected mode."""
+    return env._(
+        "Documents > Configuration > System > Storages: open the storage, set "
+        "'Storage Type' to 'Filestore' when it is 'Database', then run the "
+        "'Migrate' action. It rewrites every file of the storage, so plan it "
+        "when the users are idle."
+    )
 
-FILESTORE_STEPS = (
-    "Make the filestore directory writable by the Odoo user (for example "
-    "'chown odoo: /var/lib/odoo/filestore/<database>') and retry."
-)
+
+def _location_steps(env):
+    """Remediation shown when the attachment location is the database."""
+    return env._(
+        "Remove the 'ir_attachment.location' system parameter (or set it to "
+        "'file') in Settings > Technical > Parameters > System Parameters."
+    )
+
+
+def _filestore_steps(env):
+    """Remediation shown when the filestore directory is not writable."""
+    return env._(
+        "Make the filestore directory writable by the Odoo user (for example "
+        "'chown odoo: /var/lib/odoo/filestore/<database>') and retry."
+    )
 
 
 def _storage_report(env):
@@ -88,7 +97,7 @@ def collect_report(env):
                     "identical contents are duplicated. The filestore "
                     "deduplication is disabled."
                 ),
-                "remediation": env._(LOCATION_STEPS),
+                "remediation": _location_steps(env),
             }
         )
     else:
@@ -109,7 +118,7 @@ def collect_report(env):
                         "the Odoo user.",
                         path=filestore,
                     ),
-                    "remediation": env._(FILESTORE_STEPS),
+                    "remediation": _filestore_steps(env),
                 }
             )
     storages = _storage_report(env)
@@ -127,7 +136,7 @@ def collect_report(env):
                         "PostgreSQL, where identical contents are duplicated.",
                         count=storage["files"],
                     ),
-                    "remediation": env._(MIGRATION_STEPS),
+                    "remediation": _migration_steps(env),
                 }
             )
         elif storage["pending_migrations"]:
@@ -143,7 +152,7 @@ def collect_report(env):
                         "storage type they should be.",
                         count=storage["pending_migrations"],
                     ),
-                    "remediation": env._(MIGRATION_STEPS),
+                    "remediation": _migration_steps(env),
                 }
             )
     return {
