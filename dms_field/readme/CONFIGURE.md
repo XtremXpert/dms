@@ -23,3 +23,9 @@ this model.
 5.  You can set here the hierarchy of directories, subdirectories and
     files you need, this hierarchy will be used as a base when creating
     a new record (res.partner for example).
+
+The directories of the records are created in a directory named after the
+model (for example "Contact" for the partners). This directory is created at
+the root of the storage the first time a record is created, and is reused for
+the following ones. Set "Parent directory" to choose another directory
+instead; it takes precedence.

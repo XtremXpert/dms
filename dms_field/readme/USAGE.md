@@ -3,3 +3,5 @@
    that record will be created.
 2. Create a new partner. A hierarchy of folders and files
    linked to that record will be created.
+3. The directories of the records are grouped in a directory named after
+   the model, so they do not pile up at the root of the storage.

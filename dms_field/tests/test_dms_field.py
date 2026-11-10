@@ -122,6 +122,98 @@ class TestDmsField(BaseCommon):
         self.assertIn(
             self.template.group_ids, self.template.dms_directory_ids.group_ids
         )
+        # The template directory is not a root: it lives under the directory
+        # that gathers the directories of the model.
+        self.assertEqual(
+            self.template.dms_directory_ids.parent_id,
+            self.template._get_root_directory(),
+        )
+
+    def test_root_directory_groups_records(self):
+        """The directories of the records are grouped in one directory."""
+        root_directory = self.template._get_root_directory()
+        self.assertEqual(root_directory.name, self.template._get_root_directory_name())
+        self.assertTrue(root_directory.is_root_directory)
+        self.assertFalse(root_directory.res_model)
+        self.assertFalse(root_directory.parent_id)
+        self.assertEqual(root_directory.group_ids, self.template.group_ids)
+        partner_1 = self.env["res.partner"].create({"name": "Grouped 1"})
+        partner_1.invalidate_model()
+        self.assertEqual(partner_1.dms_directory_ids.parent_id, root_directory)
+        partner_2 = self.env["res.partner"].create({"name": "Grouped 2"})
+        partner_2.invalidate_model()
+        self.assertEqual(partner_2.dms_directory_ids.parent_id, root_directory)
+        # One single root directory is created for the model.
+        self.assertEqual(
+            self.env["dms.directory"].search_count(
+                [
+                    ("storage_id", "=", self.storage.id),
+                    ("parent_id", "=", False),
+                    ("name", "=", root_directory.name),
+                ]
+            ),
+            1,
+        )
+
+    def test_root_directory_reused_when_template_directory_named_after_model(self):
+        """A template directory already named after the model is a valid root.
+
+        Upgraded databases keep the template directory created in install mode
+        at the storage root: it is reused instead of raising on the name.
+        """
+        template_directory = self.directory
+        root_directory = self.template._get_root_directory()
+        root_name = root_directory.name
+        template_directory.write({"parent_id": False, "is_root_directory": True})
+        root_directory.unlink()
+        template_directory.write({"name": root_name})
+        self.assertEqual(self.template._get_root_directory(), template_directory)
+
+    def test_root_directory_skipped_with_model_ids(self):
+        """A storage restricted to its models keeps the record directories at
+        the root: a directory without a record would break its constraint."""
+        storage = self.env["dms.storage"].create(
+            {
+                "name": "Storage with models",
+                "save_type": "database",
+                "model_ids": [(6, 0, [self.env.ref("base.model_res_users").id])],
+            }
+        )
+        template = self.env["dms.field.template"].create(
+            {
+                "name": "Users",
+                "storage_id": storage.id,
+                "model_id": self.env.ref("base.model_res_users").id,
+                "group_ids": [(6, 0, self.template.group_ids.ids)],
+            }
+        )
+        self.assertFalse(template._get_root_directory())
+        user = new_test_user(self.env, login="test-user-model-directory")
+        directory = template.with_context(
+            res_model="res.users", res_id=user.id
+        ).create_dms_directory()
+        self.assertTrue(directory.is_root_directory)
+        self.assertFalse(directory.parent_id)
+        self.assertEqual(directory.storage_id, storage)
+
+    def test_child_directories_ignore_record_directories(self):
+        """Directories linked to a record are never copied as template
+        structure."""
+        record_directory = self.env["dms.directory"].create(
+            {
+                "name": "A record directory",
+                "parent_id": self.directory.id,
+                "storage_id": self.storage.id,
+                "res_model": self.partner._name,
+                "res_id": self.partner.id,
+            }
+        )
+        partner = self.env["res.partner"].create({"name": "Copied structure"})
+        partner.invalidate_model()
+        child_names = partner.dms_directory_ids.child_directory_ids.mapped("name")
+        self.assertNotIn(record_directory.name, child_names)
+        self.assertIn(self.subdirectory_1.name, child_names)
+        self.assertIn(self.subdirectory_2.name, child_names)
 
     @mute_logger("odoo.models.unlink")
     def test_creation_process_01(self):
@@ -134,9 +226,9 @@ class TestDmsField(BaseCommon):
         self.assertEqual(self.partner.dms_directory_ids.name, self.partner.display_name)
         child_names = self.partner.dms_directory_ids.mapped("child_directory_ids.name")
         directory_0 = self.partner.dms_directory_ids[0]
-        self.assertFalse(directory_0.parent_id)
-        self.assertTrue(directory_0.is_root_directory)
-        self.assertTrue(directory_0.inherit_group_ids)
+        self.assertEqual(directory_0.parent_id, self.template._get_root_directory())
+        self.assertFalse(directory_0.is_root_directory)
+        self.assertFalse(directory_0.inherit_group_ids)
         self.assertIn(self.template.group_ids, directory_0.group_ids)
         self.assertIn(self.group, directory_0.group_ids.group_ids)
         self.assertIn(self.partner, directory_0.mapped("group_ids.dms_field_ref"))
@@ -190,9 +282,9 @@ class TestDmsField(BaseCommon):
         partner_1 = self.env["res.partner"].create({"name": "Test partner 1"})
         partner_1.invalidate_model()
         directory_1 = partner_1.dms_directory_ids[0]
-        self.assertFalse(directory_1.parent_id)
-        self.assertTrue(directory_1.is_root_directory)
-        self.assertTrue(directory_1.inherit_group_ids)
+        self.assertEqual(directory_1.parent_id, self.template._get_root_directory())
+        self.assertFalse(directory_1.is_root_directory)
+        self.assertFalse(directory_1.inherit_group_ids)
         partner_2 = (
             self.env["res.partner"]
             .with_context(skip_track_dms_field_template=True)
