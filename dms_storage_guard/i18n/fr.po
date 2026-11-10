@@ -1,0 +1,181 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* dms_storage_guard
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 20.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-10 21:20+0000\n"
+"PO-Revision-Date: 2026-11-10 21:20+0000\n"
+"Last-Translator: XtremXpert\n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#. module: dms_storage_guard
+msgid "  To fix it: %(remediation)s"
+msgstr "  Pour corriger : %(remediation)s"
+
+#. module: dms_storage_guard
+msgid "%(count)s file(s) of this storage are not stored in the storage type they should be."
+msgstr "%(count)s fichier(s) de ce stockage ne sont pas dans le type de stockage attendu."
+
+#. module: dms_storage_guard
+msgid "%(count)s file(s) of this storage are stored in PostgreSQL, where identical contents are duplicated."
+msgstr "%(count)s fichier(s) de ce stockage sont stockés dans PostgreSQL, où les contenus identiques sont dupliqués."
+
+#. module: dms_storage_guard
+msgid "%(count)s problem(s) found"
+msgstr "%(count)s problème(s) détecté(s)"
+
+#. module: dms_storage_guard
+msgid "All the DMS storages are stored in the filestore."
+msgstr "Tous les stockages DMS sont stockés dans le filestore."
+
+#. module: dms_storage_guard
+msgid "Attachments are stored in the database"
+msgstr "Les pièces jointes sont stockées dans la base de données"
+
+#. module: dms_storage_guard
+msgid "Check the DMS storages before installing"
+msgstr "Contrôler les stockages DMS avant l'installation"
+
+#. module: dms_storage_guard
+msgid "Checked on %(date)s (ir_attachment.location = %(location)s)."
+msgstr "Contrôlé le %(date)s (ir_attachment.location = %(location)s)."
+
+#. module: dms_storage_guard
+msgid "Close"
+msgstr "Fermer"
+
+#. module: dms_storage_guard
+msgid "Created by"
+msgstr "Créé par"
+
+#. module: dms_storage_guard
+msgid "Created on"
+msgstr "Créé le"
+
+#. module: dms_storage_guard
+msgid "DMS Storage Check"
+msgstr "Contrôle du stockage DMS"
+
+#. module: dms_storage_guard
+msgid "DMS Storage Guard"
+msgstr "Garde-fou du stockage DMS"
+
+#. module: dms_storage_guard
+msgid "DMS Storage Guard cannot be installed: %(count)s problem(s) were found in the document storage."
+msgstr "DMS Storage Guard ne peut pas être installé : %(count)s problème(s) ont été détectés dans le stockage des documents."
+
+#. module: dms_storage_guard
+msgid "Display Name"
+msgstr "Nom affiché"
+
+#. module: dms_storage_guard
+msgid "Files"
+msgstr "Fichiers"
+
+#. module: dms_storage_guard
+msgid "Fix the problems above, then retry the installation. To install anyway (demo or test database), set the system parameter 'dms_storage_guard.allow_database_storage' to '1'."
+msgstr "Corrigez les problèmes ci-dessus puis relancez l'installation. Pour installer malgré tout (base de démonstration ou de test), mettez le paramètre système 'dms_storage_guard.allow_database_storage' à '1'."
+
+#. module: dms_storage_guard
+msgid "ID"
+msgstr "ID"
+
+#. module: dms_storage_guard
+msgid "Last Updated by"
+msgstr "Mis à jour par"
+
+#. module: dms_storage_guard
+msgid "Last Updated on"
+msgstr "Mis à jour le"
+
+#. module: dms_storage_guard
+msgid "OK"
+msgstr "OK"
+
+#. module: dms_storage_guard
+msgid "Pending migrations"
+msgstr "Migrations en attente"
+
+#. module: dms_storage_guard
+msgid "Problem Count"
+msgstr "Nombre de problèmes"
+
+#. module: dms_storage_guard
+msgid "Problems"
+msgstr "Problèmes"
+
+#. module: dms_storage_guard
+msgid "Report"
+msgstr "Rapport"
+
+#. module: dms_storage_guard
+msgid "Report Html"
+msgstr "Rapport"
+
+#. module: dms_storage_guard
+msgid "Run again"
+msgstr "Relancer"
+
+#. module: dms_storage_guard
+msgid "Status"
+msgstr "Statut"
+
+#. module: dms_storage_guard
+msgid "Storage"
+msgstr "Stockage"
+
+#. module: dms_storage_guard
+msgid "Storage %(name)s has files waiting for a migration"
+msgstr "Le stockage %(name)s a des fichiers en attente de migration"
+
+#. module: dms_storage_guard
+msgid "Storage %(name)s stores its files in the database"
+msgstr "Le stockage %(name)s stocke ses fichiers dans la base de données"
+
+#. module: dms_storage_guard
+msgid "Storage Check"
+msgstr "Contrôle du stockage"
+
+#. module: dms_storage_guard
+msgid "Storage type"
+msgstr "Type de stockage"
+
+#. module: dms_storage_guard
+msgid "The 'ir_attachment.location' system parameter is set to 'db': every attachment is written to PostgreSQL, where identical contents are duplicated. The filestore deduplication is disabled."
+msgstr "Le paramètre système 'ir_attachment.location' vaut 'db' : chaque pièce jointe est écrite dans PostgreSQL, où les contenus identiques sont dupliqués. La déduplication du filestore est désactivée."
+
+#. module: dms_storage_guard
+msgid "The document storage needs attention."
+msgstr "Le stockage des documents demande votre attention."
+
+#. module: dms_storage_guard
+msgid "The filestore directory %(path)s cannot be written by the Odoo user."
+msgstr "Le répertoire filestore %(path)s n'est pas accessible en écriture par l'utilisateur Odoo."
+
+#. module: dms_storage_guard
+msgid "The filestore directory is not writable"
+msgstr "Le répertoire filestore n'est pas accessible en écriture"
+
+#. module: dms_storage_guard
+msgid "To fix it: %(remediation)s"
+msgstr "Pour corriger : %(remediation)s"
+
+#. module: dms_storage_guard
+msgid "Remove the 'ir_attachment.location' system parameter (or set it to 'file') in Settings > Technical > Parameters > System Parameters."
+msgstr "Supprimez le paramètre système 'ir_attachment.location' (ou mettez-le à 'file') dans Paramètres > Technique > Paramètres > Paramètres système."
+
+#. module: dms_storage_guard
+msgid "Make the filestore directory writable by the Odoo user (for example 'chown odoo: /var/lib/odoo/filestore/<database>') and retry."
+msgstr "Rendez le répertoire filestore accessible en écriture à l'utilisateur Odoo (par exemple 'chown odoo: /var/lib/odoo/filestore/<base>') puis réessayez."
+
+#. module: dms_storage_guard
+msgid "Documents > Configuration > System > Storages: open the storage, set 'Storage Type' to 'Filestore' when it is 'Database', then run the 'Migrate' action. It rewrites every file of the storage, so plan it when the users are idle."
+msgstr "Documents > Configuration > Système > Stockages : ouvrez le stockage, mettez 'Type de stockage' à 'Filestore' s'il est à 'Base de données', puis lancez l'action 'Migrer'. Elle réécrit tous les fichiers du stockage : planifiez-la quand les utilisateurs sont inactifs."

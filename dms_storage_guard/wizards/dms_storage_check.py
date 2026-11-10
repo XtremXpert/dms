@@ -12,53 +12,69 @@ class DmsStorageCheck(models.TransientModel):
     _name = "dms.storage.check"
     _description = "DMS Storage Check"
 
-    problem_count = fields.Integer(compute="_compute_report")
+    problem_count = fields.Integer(string="Problems", compute="_compute_report")
     status = fields.Char(compute="_compute_report")
-    report_html = fields.Html(compute="_compute_report", sanitize=False)
+    report_html = fields.Html(
+        string="Report", compute="_compute_report", sanitize=False
+    )
 
     @api.depends()
     def _compute_report(self):
         for check in self:
             report = collect_report(check.env)
-            check.problem_count = len(report["problems"])
+            count = len(report["problems"])
+            check.problem_count = count
             check.status = (
-                "OK"
-                if not report["problems"]
-                else f"{len(report['problems'])} problem(s) found"
+                check.env._("OK")
+                if not count
+                else check.env._("%(count)s problem(s) found", count=count)
             )
             check.report_html = check._render_report(report)
 
     def _render_report(self, report):
+        env = self.env
         chunks = []
         if report["problems"]:
             chunks.append(
                 '<div class="alert alert-warning" role="alert">'
-                "<strong>The document storage needs attention.</strong>"
-                "<ul>"
+                f"<strong>{escape(env._('The document storage needs attention.'))}"
+                "</strong><ul>"
             )
             for problem in report["problems"]:
                 chunks.append(
                     "<li><strong>{title}</strong><br/>{details}"
-                    "<br/><em>To fix it: {remediation}</em></li>".format(
+                    "<br/><em>{remediation}</em></li>".format(
                         title=escape(problem["title"]),
                         details=escape(problem["details"]),
-                        remediation=escape(problem["remediation"]),
+                        remediation=escape(
+                            env._(
+                                "To fix it: %(remediation)s",
+                                remediation=problem["remediation"],
+                            )
+                        ),
                     )
                 )
             chunks.append("</ul></div>")
         else:
             chunks.append(
                 '<div class="alert alert-success" role="alert">'
-                "All the DMS storages are stored in the filestore."
+                f"{escape(env._('All the DMS storages are stored in the filestore.'))}"
                 "</div>"
             )
+        headers = (
+            env._("Storage"),
+            env._("Storage type"),
+            env._("Files"),
+            env._("Pending migrations"),
+        )
         chunks.append(
-            '<table class="table table-sm">'
-            "<thead><tr>"
-            "<th>Storage</th><th>Storage type</th>"
-            '<th class="text-end">Files</th>'
-            '<th class="text-end">Pending migrations</th>'
-            "</tr></thead><tbody>"
+            '<table class="table table-sm"><thead><tr>'
+            f"<th>{escape(headers[0])}</th><th>{escape(headers[1])}</th>"
+            '<th class="text-end">{headers[2]}</th>'
+            '<th class="text-end">{headers[3]}</th>'
+            "</tr></thead><tbody>".format(
+                headers=tuple(escape(header) for header in headers)
+            )
         )
         for storage in report["storages"]:
             chunks.append(
@@ -72,13 +88,12 @@ class DmsStorageCheck(models.TransientModel):
                 )
             )
         chunks.append("</tbody></table>")
-        chunks.append(
-            '<p class="text-muted small">Checked on {date} '
-            "(ir_attachment.location = {location}).</p>".format(
-                date=escape(report["generated_at"]),
-                location=escape(report["attachment_location"]),
-            )
+        checked = env._(
+            "Checked on %(date)s (ir_attachment.location = %(location)s).",
+            date=report["generated_at"],
+            location=report["attachment_location"],
         )
+        chunks.append(f'<p class="text-muted small">{escape(checked)}</p>')
         return Markup("".join(chunks))
 
     def action_recheck(self):

@@ -81,14 +81,14 @@ def collect_report(env):
         problems.append(
             {
                 "code": "attachment_location",
-                "title": "Attachments are stored in the database",
-                "details": (
+                "title": env._("Attachments are stored in the database"),
+                "details": env._(
                     "The 'ir_attachment.location' system parameter is set to "
                     "'db': every attachment is written to PostgreSQL, where "
                     "identical contents are duplicated. The filestore "
                     "deduplication is disabled."
                 ),
-                "remediation": LOCATION_STEPS,
+                "remediation": env._(LOCATION_STEPS),
             }
         )
     else:
@@ -103,12 +103,13 @@ def collect_report(env):
             problems.append(
                 {
                     "code": "filestore_not_writable",
-                    "title": "The filestore directory is not writable",
-                    "details": (
-                        f"The filestore directory '{filestore}' cannot be "
-                        "written by the Odoo user."
+                    "title": env._("The filestore directory is not writable"),
+                    "details": env._(
+                        "The filestore directory %(path)s cannot be written by "
+                        "the Odoo user.",
+                        path=filestore,
                     ),
-                    "remediation": FILESTORE_STEPS,
+                    "remediation": env._(FILESTORE_STEPS),
                 }
             )
     storages = _storage_report(env)
@@ -117,28 +118,32 @@ def collect_report(env):
             problems.append(
                 {
                     "code": "storage_database",
-                    "title": (
-                        f"Storage '{storage['name']}' stores its files in the database"
+                    "title": env._(
+                        "Storage %(name)s stores its files in the database",
+                        name=f"'{storage['name']}'",
                     ),
-                    "details": (
-                        f"{storage['files']} file(s) of this storage are stored in "
-                        "PostgreSQL, where identical contents are duplicated."
+                    "details": env._(
+                        "%(count)s file(s) of this storage are stored in "
+                        "PostgreSQL, where identical contents are duplicated.",
+                        count=storage["files"],
                     ),
-                    "remediation": MIGRATION_STEPS,
+                    "remediation": env._(MIGRATION_STEPS),
                 }
             )
         elif storage["pending_migrations"]:
             problems.append(
                 {
                     "code": "storage_pending_migration",
-                    "title": (
-                        f"Storage '{storage['name']}' has files waiting for a migration"
+                    "title": env._(
+                        "Storage %(name)s has files waiting for a migration",
+                        name=f"'{storage['name']}'",
                     ),
-                    "details": (
-                        f"{storage['pending_migrations']} file(s) of this storage "
-                        "are not stored in the storage type they should be."
+                    "details": env._(
+                        "%(count)s file(s) of this storage are not stored in the "
+                        "storage type they should be.",
+                        count=storage["pending_migrations"],
                     ),
-                    "remediation": MIGRATION_STEPS,
+                    "remediation": env._(MIGRATION_STEPS),
                 }
             )
     return {
@@ -149,12 +154,13 @@ def collect_report(env):
     }
 
 
-def format_problems(report):
+def format_problems(env, report):
     """Human readable message explaining every problem and its remediation."""
     lines = [
-        (
-            "DMS Storage Guard cannot be installed: "
-            f"{len(report['problems'])} problem(s) were found in the document storage."
+        env._(
+            "DMS Storage Guard cannot be installed: %(count)s problem(s) were "
+            "found in the document storage.",
+            count=len(report["problems"]),
         ),
         "",
     ]
@@ -163,14 +169,18 @@ def format_problems(report):
             [
                 f"- {problem['title']}",
                 f"  {problem['details']}",
-                f"  To fix it: {problem['remediation']}",
+                env._(
+                    "  To fix it: %(remediation)s", remediation=problem["remediation"]
+                ),
                 "",
             ]
         )
     lines.append(
-        "Fix the problems above, then retry the installation. To install "
-        "anyway (demo or test database), set the system parameter "
-        "'dms_storage_guard.allow_database_storage' to '1'."
+        env._(
+            "Fix the problems above, then retry the installation. To install "
+            "anyway (demo or test database), set the system parameter "
+            "'dms_storage_guard.allow_database_storage' to '1'."
+        )
     )
     return "\n".join(lines)
 
@@ -205,4 +215,4 @@ def pre_init_hook(env):
             ALLOW_DATABASE_PARAM,
         )
         return
-    raise UserError(format_problems(report))
+    raise UserError(format_problems(env, report))
