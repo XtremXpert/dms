@@ -1,0 +1,3 @@
+id,name,model_id,group_id/id,operation,domain
+access_dms_storage_check_manager,dms_storage_check_manager,dms.storage.check,dms.group_dms_manager,crud,
+access_dms_storage_check_system,dms_storage_check_system,dms.storage.check,base.group_system,crud,

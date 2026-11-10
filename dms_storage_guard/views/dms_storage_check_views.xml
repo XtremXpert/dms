@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Copyright 2026 XtremXpert
+     License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl). -->
+<odoo>
+    <record id="view_dms_storage_check_form" model="ir.ui.view">
+        <field name="name">dms.storage.check.form</field>
+        <field name="model">dms.storage.check</field>
+        <field name="arch" type="xml">
+            <form string="DMS Storage Check">
+                <sheet>
+                    <group>
+                        <field name="status" readonly="1" />
+                        <field name="problem_count" readonly="1" />
+                    </group>
+                    <field name="report_html" nolabel="1" readonly="1" widget="html" />
+                </sheet>
+                <footer>
+                    <button
+                        name="action_recheck"
+                        type="object"
+                        string="Run again"
+                        class="btn-secondary"
+                    />
+                    <button special="cancel" string="Close" class="btn-primary" />
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_dms_storage_check" model="ir.actions.act_window">
+        <field name="name">Storage Check</field>
+        <field name="res_model">dms.storage.check</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem
+        id="menu_dms_storage_check"
+        name="Storage Check"
+        parent="dms.cat_menu_dms_config_system"
+        action="action_dms_storage_check"
+        sequence="20"
+        groups="dms.group_dms_manager"
+    />
+</odoo>
