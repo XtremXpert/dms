@@ -4,7 +4,7 @@
 {
     "name": "DMS Storage Guard",
     "summary": "Check the DMS storages before installing",
-    "version": "20.0.1.0.0",
+    "version": "20.0.1.1.0",
     "license": "LGPL-3",
     "author": "XtremXpert,Odoo Community Association (OCA)",
     "website": "https://github.com/OCA/dms",

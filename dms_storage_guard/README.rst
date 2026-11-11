@@ -89,17 +89,21 @@ To install anyway on another database, set the system parameter
 Usage
 =====
 
-Open *Documents > Configuration > System > Storage Check* to see the
-state of every storage, the files waiting for a migration and the
-remediation steps.
+Open *Documents > Configuration > System > Storage Check* to see:
+
+- the state of every storage (mode, files, pending migrations);
+- the space used and the space saved by the filestore deduplication;
+- the documents sharing the same content (duplicates);
+- the filestore integrity (attachments referenced in the database and
+  files really present on disk).
 
 Known issues / Roadmap
 ======================
 
-- Detect duplicated documents from their checksum and warn on upload.
-- Report the space saved by the filestore deduplication, per storage.
-- Add a maintenance action confirming the filestore integrity
-  (attachments without a file on disk, files without an attachment).
+- Offer the remediation actions from the screen itself (migrate a
+  storage, open a duplicate document, purge the unreferenced files after
+  the garbage collection).
+- Report the storage usage per storage instead of the whole database.
 
 Bug Tracker
 ===========

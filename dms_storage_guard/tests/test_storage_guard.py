@@ -6,7 +6,10 @@ from odoo.tests import TransactionCase, tagged
 from ..hooks import (
     ALLOW_DATABASE_PARAM,
     REPORT_PARAM,
+    check_filestore,
+    collect_duplicates,
     collect_report,
+    collect_space,
     pre_init_hook,
 )
 
@@ -131,12 +134,73 @@ class TestStorageGuard(TransactionCase):
         stored = json.loads(self.parameters.get_str(REPORT_PARAM))
         self.assertFalse(stored["problems"])
 
+    def test_space_and_deduplication(self):
+        """Identical files share one physical file in the filestore."""
+        storage = self.Storage.create(
+            {"name": "Guard file storage", "save_type": "file"}
+        )
+        directory = self._root_directory(storage)
+        self._file(directory, name="same-1.txt", content="Z3VhcmQ=")
+        self._file(directory, name="same-2.txt", content="Z3VhcmQ=")
+        space = collect_space(self.env)
+        self.assertGreaterEqual(space["files"], 2)
+        self.assertGreaterEqual(space["filestore_files"], 2)
+        self.assertGreaterEqual(space["physical_files"], 1)
+        self.assertGreater(space["saved_size"], 0)
+        self.assertLessEqual(space["physical_size"], space["filestore_logical_size"])
+
+    def test_duplicate_documents(self):
+        """Documents with the same checksum are reported."""
+        storage = self.Storage.create(
+            {"name": "Guard duplicate storage", "save_type": "database"}
+        )
+        directory = self._root_directory(storage)
+        first = self._file(directory, name="dup-1.txt", content="Z3VhcmQ=")
+        self._file(directory, name="dup-2.txt", content="Z3VhcmQ=")
+        duplicates = collect_duplicates(self.env)
+        group = next(item for item in duplicates if item["checksum"] == first.checksum)
+        self.assertEqual(group["copies"], 2)
+        self.assertGreater(group["wasted"], 0)
+
+    def test_filestore_integrity_is_ok(self):
+        storage = self.Storage.create(
+            {"name": "Guard integrity storage", "save_type": "file"}
+        )
+        directory = self._root_directory(storage)
+        self._file(directory, name="integrity.txt", content="Z3VhcmQ=")
+        integrity = check_filestore(self.env)
+        self.assertTrue(integrity["ok"])
+        self.assertGreaterEqual(integrity["referenced"], 1)
+        self.assertGreaterEqual(integrity["present"], 1)
+
+    def test_filestore_integrity_detects_a_missing_file(self):
+        storage = self.Storage.create(
+            {"name": "Guard missing storage", "save_type": "file"}
+        )
+        directory = self._root_directory(storage)
+        self._file(directory, name="missing.txt", content="Z3VhcmQ=")
+        attachment = self.env["ir.attachment"].search(
+            [("res_model", "=", "dms.file"), ("res_field", "=", "content_file")],
+            limit=1,
+        )
+        self.env.cr.execute(
+            "UPDATE ir_attachment SET store_fname = %s WHERE id = %s",
+            ("zz/" + "f" * 40, attachment.id),
+        )
+        attachment.invalidate_recordset()
+        integrity = check_filestore(self.env)
+        self.assertFalse(integrity["ok"])
+        self.assertGreaterEqual(integrity["missing_count"], 1)
+
     def test_wizard_reports_problems(self):
         """The diagnostic screen shows the problems and can run again."""
         self._database_storage("Guard wizard storage")
         check = self.env["dms.storage.check"].create({})
         self.assertGreater(check.problem_count, 0)
         self.assertIn("Guard wizard storage", check.report_html)
+        self.assertIn("Space and deduplication", check.report_html)
+        self.assertIn("Duplicate documents", check.report_html)
+        self.assertIn("Filestore integrity", check.report_html)
         action = check.action_recheck()
         self.assertEqual(action["target"], "new")
         self.assertFalse(action["res_id"])

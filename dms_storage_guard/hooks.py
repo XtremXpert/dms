@@ -76,6 +76,127 @@ def _storage_report(env):
     return storages
 
 
+def collect_space(env):
+    """Statistics about the DMS files and the filestore deduplication."""
+    # su: read every file and attachment whatever the caller rights.
+    env = env(su=True)
+    env.cr.execute("SELECT count(*), coalesce(sum(size), 0) FROM dms_file WHERE active")
+    files, logical_size = env.cr.fetchone()
+    env.cr.execute(
+        "SELECT count(*), coalesce(sum(size), 0) FROM dms_file "
+        "WHERE active AND content_binary IS NOT NULL"
+    )
+    database_files, database_size = env.cr.fetchone()
+    env.cr.execute(
+        """
+        SELECT count(DISTINCT f.id), coalesce(sum(f.size), 0)
+        FROM dms_file f
+        JOIN ir_attachment a
+          ON a.res_model = 'dms.file' AND a.res_id = f.id
+         AND a.res_field = 'content_file'
+        WHERE f.active AND a.store_fname IS NOT NULL
+        """
+    )
+    filestore_files, filestore_logical_size = env.cr.fetchone()
+    env.cr.execute(
+        """
+        SELECT count(*), coalesce(sum(size), 0)
+        FROM (
+            SELECT a.store_fname, max(a.file_size) AS size
+            FROM ir_attachment a
+            JOIN dms_file f ON f.id = a.res_id AND a.res_model = 'dms.file'
+            WHERE a.res_field = 'content_file'
+              AND a.store_fname IS NOT NULL
+            GROUP BY a.store_fname
+        ) stored
+        """
+    )
+    physical_files, physical_size = env.cr.fetchone()
+    logical_size = int(logical_size or 0)
+    filestore_logical_size = int(filestore_logical_size or 0)
+    physical_size = int(physical_size or 0)
+    return {
+        "files": files,
+        "logical_size": logical_size,
+        "database_files": database_files,
+        "database_size": int(database_size or 0),
+        "filestore_files": filestore_files,
+        "filestore_logical_size": filestore_logical_size,
+        "physical_files": physical_files,
+        "physical_size": physical_size,
+        "saved_size": max(filestore_logical_size - physical_size, 0),
+    }
+
+
+def collect_duplicates(env, limit=20):
+    """Documents sharing the same content (same checksum)."""
+    # su: read every file whatever the caller rights.
+    env = env(su=True)
+    env.cr.execute(
+        """
+        SELECT checksum, count(*) AS copies, max(size) AS size
+        FROM dms_file
+        WHERE active AND checksum IS NOT NULL
+        GROUP BY checksum
+        HAVING count(*) > 1
+        ORDER BY count(*) DESC, max(size) DESC
+        LIMIT %s
+        """,
+        (limit,),
+    )
+    duplicates = []
+    for checksum, copies, size in env.cr.fetchall():
+        size = int(size or 0)
+        duplicates.append(
+            {
+                "checksum": checksum,
+                "copies": copies,
+                "size": size,
+                "wasted": size * (copies - 1),
+            }
+        )
+    return duplicates
+
+
+def check_filestore(env, limit=20):
+    """Compare the filestore attachments with the files really on disk."""
+    # su: read every attachment whatever the caller rights.
+    env = env(su=True)
+    filestore = env["ir.attachment"]._filestore()
+    env.cr.execute(
+        "SELECT DISTINCT store_fname FROM ir_attachment WHERE store_fname IS NOT NULL"
+    )
+    referenced = {row[0] for row in env.cr.fetchall()}
+    missing = sorted(
+        name for name in referenced if not os.path.isfile(os.path.join(filestore, name))
+    )
+    present = 0
+    orphans = []
+    for dirpath, dirnames, filenames in os.walk(filestore):
+        relative = os.path.relpath(dirpath, filestore)
+        if relative == ".":
+            relative = ""
+        if relative.split(os.sep)[0] in ("checklist", "upload"):
+            dirnames[:] = []
+            continue
+        for name in filenames:
+            path = "/".join(filter(None, (relative.replace(os.sep, "/"), name)))
+            present += 1
+            if path not in referenced:
+                orphans.append(path)
+    orphans.sort()
+    return {
+        "filestore": filestore,
+        "referenced": len(referenced),
+        "present": present,
+        "missing": missing[:limit],
+        "missing_count": len(missing),
+        "orphans": orphans[:limit],
+        "orphan_count": len(orphans),
+        "ok": not missing,
+    }
+
+
 def collect_report(env):
     """Diagnose the DMS storages and return a JSON-serialisable report."""
     # su: read every storage, file and parameter whatever the caller rights.

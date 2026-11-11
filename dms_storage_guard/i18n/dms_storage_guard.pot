@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 20.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-10 21:28+0000\n"
-"PO-Revision-Date: 2026-11-10 21:28+0000\n"
+"POT-Creation-Date: 2026-11-11 00:03+0000\n"
+"PO-Revision-Date: 2026-11-11 00:03+0000\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "MIME-Version: 1.0\n"
@@ -41,6 +41,20 @@ msgstr ""
 #. odoo-python
 #: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
 msgid "%(count)s problem(s) found"
+msgstr ""
+
+#. module: dms_storage_guard
+#. odoo-python
+#: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
+msgid ""
+"%(count)s unreferenced file(s) on disk (waiting for the filestore garbage "
+"collection)."
+msgstr ""
+
+#. module: dms_storage_guard
+#. odoo-python
+#: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
+msgid "%(referenced)s attachment(s) referenced, %(present)s file(s) on disk."
 msgstr ""
 
 #. module: dms_storage_guard
@@ -137,17 +151,21 @@ msgid ""
 "Usage\n"
 "=====\n"
 "\n"
-"Open *Documents > Configuration > System > Storage Check* to see the\n"
-"state of every storage, the files waiting for a migration and the\n"
-"remediation steps.\n"
+"Open *Documents > Configuration > System > Storage Check* to see:\n"
+"\n"
+"- the state of every storage (mode, files, pending migrations);\n"
+"- the space used and the space saved by the filestore deduplication;\n"
+"- the documents sharing the same content (duplicates);\n"
+"- the filestore integrity (attachments referenced in the database and\n"
+"  files really present on disk).\n"
 "\n"
 "Known issues / Roadmap\n"
 "======================\n"
 "\n"
-"- Detect duplicated documents from their checksum and warn on upload.\n"
-"- Report the space saved by the filestore deduplication, per storage.\n"
-"- Add a maintenance action confirming the filestore integrity\n"
-"  (attachments without a file on disk, files without an attachment).\n"
+"- Offer the remediation actions from the screen itself (migrate a\n"
+"  storage, open a duplicate document, purge the unreferenced files after\n"
+"  the garbage collection).\n"
+"- Report the storage usage per storage instead of the whole database.\n"
 "\n"
 "Bug Tracker\n"
 "===========\n"
@@ -198,6 +216,12 @@ msgstr ""
 
 #. module: dms_storage_guard
 #. odoo-python
+#: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
+msgid "All the attachments are present in the filestore."
+msgstr ""
+
+#. module: dms_storage_guard
+#. odoo-python
 #: code:addons/dms_storage_guard/hooks.py:0
 msgid "Attachments are stored in the database"
 msgstr ""
@@ -214,8 +238,20 @@ msgid "Checked on %(date)s (ir_attachment.location = %(location)s)."
 msgstr ""
 
 #. module: dms_storage_guard
+#. odoo-python
+#: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
+msgid "Checksum"
+msgstr ""
+
+#. module: dms_storage_guard
 #: model_terms:ir.ui.view,arch_db:dms_storage_guard.view_dms_storage_check_form
 msgid "Close"
+msgstr ""
+
+#. module: dms_storage_guard
+#. odoo-python
+#: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
+msgid "Copies"
 msgstr ""
 
 #. module: dms_storage_guard
@@ -248,6 +284,12 @@ msgid ""
 msgstr ""
 
 #. module: dms_storage_guard
+#. odoo-python
+#: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
+msgid "DMS files"
+msgstr ""
+
+#. module: dms_storage_guard
 #: model:ir.model.fields,field_description:dms_storage_guard.field_dms_storage_check__display_name
 msgid "Display Name"
 msgstr ""
@@ -265,7 +307,37 @@ msgstr ""
 #. module: dms_storage_guard
 #. odoo-python
 #: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
+msgid "Duplicate documents"
+msgstr ""
+
+#. module: dms_storage_guard
+#. odoo-python
+#: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
 msgid "Files"
+msgstr ""
+
+#. module: dms_storage_guard
+#. odoo-python
+#: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
+msgid "Files on disk"
+msgstr ""
+
+#. module: dms_storage_guard
+#. odoo-python
+#: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
+msgid "Files stored in the database"
+msgstr ""
+
+#. module: dms_storage_guard
+#. odoo-python
+#: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
+msgid "Files stored in the filestore"
+msgstr ""
+
+#. module: dms_storage_guard
+#. odoo-python
+#: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
+msgid "Filestore integrity"
 msgstr ""
 
 #. module: dms_storage_guard
@@ -303,6 +375,12 @@ msgstr ""
 #. module: dms_storage_guard
 #. odoo-python
 #: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
+msgid "No duplicate document."
+msgstr ""
+
+#. module: dms_storage_guard
+#. odoo-python
+#: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
 msgid "OK"
 msgstr ""
 
@@ -314,7 +392,7 @@ msgstr ""
 
 #. module: dms_storage_guard
 #: model:ir.model.fields,field_description:dms_storage_guard.field_dms_storage_check__problem_count
-msgid "Problems"
+msgid "Problem Count"
 msgstr ""
 
 #. module: dms_storage_guard
@@ -327,12 +405,36 @@ msgstr ""
 
 #. module: dms_storage_guard
 #: model:ir.model.fields,field_description:dms_storage_guard.field_dms_storage_check__report_html
-msgid "Report"
+msgid "Report Html"
 msgstr ""
 
 #. module: dms_storage_guard
 #: model_terms:ir.ui.view,arch_db:dms_storage_guard.view_dms_storage_check_form
 msgid "Run again"
+msgstr ""
+
+#. module: dms_storage_guard
+#. odoo-python
+#: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
+msgid "Size"
+msgstr ""
+
+#. module: dms_storage_guard
+#. odoo-python
+#: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
+msgid "Some attachments are missing from the filestore."
+msgstr ""
+
+#. module: dms_storage_guard
+#. odoo-python
+#: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
+msgid "Space and deduplication"
+msgstr ""
+
+#. module: dms_storage_guard
+#. odoo-python
+#: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
+msgid "Space saved by deduplication"
 msgstr ""
 
 #. module: dms_storage_guard
@@ -401,4 +503,10 @@ msgstr ""
 #. odoo-python
 #: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
 msgid "To fix it: %(remediation)s"
+msgstr ""
+
+#. module: dms_storage_guard
+#. odoo-python
+#: code:addons/dms_storage_guard/wizards/dms_storage_check.py:0
+msgid "Wasted space"
 msgstr ""
