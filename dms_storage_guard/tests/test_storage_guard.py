@@ -201,6 +201,7 @@ class TestStorageGuard(TransactionCase):
         self.assertIn("Space and deduplication", check.report_html)
         self.assertIn("Duplicate documents", check.report_html)
         self.assertIn("Filestore integrity", check.report_html)
+        self.assertNotIn("False", check.report_html)
         action = check.action_recheck()
         self.assertEqual(action["target"], "new")
         self.assertFalse(action["res_id"])

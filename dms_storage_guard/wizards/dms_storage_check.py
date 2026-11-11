@@ -9,6 +9,11 @@ from odoo.tools import human_size
 from ..hooks import check_filestore, collect_duplicates, collect_report, collect_space
 
 
+def _format_size(value):
+    """Human readable size, ``0`` for an empty size (human_size returns False)."""
+    return human_size(value) if value else "0"
+
+
 class DmsStorageCheck(models.TransientModel):
     _name = "dms.storage.check"
     _description = "DMS Storage Check"
@@ -106,20 +111,24 @@ class DmsStorageCheck(models.TransientModel):
             (env._("DMS files"), str(space["files"])),
             (
                 env._("Files stored in the database"),
-                f"{space['database_files']} ({human_size(space['database_size'])})",
+                "{} ({})".format(
+                    space["database_files"], _format_size(space["database_size"])
+                ),
             ),
             (
                 env._("Files stored in the filestore"),
                 "{} ({})".format(
                     space["filestore_files"],
-                    human_size(space["filestore_logical_size"]),
+                    _format_size(space["filestore_logical_size"]),
                 ),
             ),
             (
                 env._("Files on disk"),
-                f"{space['physical_files']} ({human_size(space['physical_size'])})",
+                "{} ({})".format(
+                    space["physical_files"], _format_size(space["physical_size"])
+                ),
             ),
-            (env._("Space saved by deduplication"), human_size(space["saved_size"])),
+            (env._("Space saved by deduplication"), _format_size(space["saved_size"])),
         )
         cells = "".join(
             f"<tr><td>{escape(label)}</td>"
@@ -153,8 +162,8 @@ class DmsStorageCheck(models.TransientModel):
                 "<td class='text-end'>{wasted}</td></tr>".format(
                     checksum=escape(duplicate["checksum"]),
                     copies=duplicate["copies"],
-                    size=escape(human_size(duplicate["size"])),
-                    wasted=escape(human_size(duplicate["wasted"])),
+                    size=escape(_format_size(duplicate["size"])),
+                    wasted=escape(_format_size(duplicate["wasted"])),
                 )
             )
         chunks.append("</tbody></table>")
