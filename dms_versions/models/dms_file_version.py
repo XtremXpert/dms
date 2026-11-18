@@ -15,6 +15,7 @@ from odoo import api
 from odoo import fields
 from odoo import models
 from odoo.exceptions import AccessError
+from odoo.tools.binary import BinaryBytes
 
 
 class DmsFileVersion(models.Model):
@@ -88,7 +89,7 @@ class DmsFileVersion(models.Model):
         # bytes(): freeze the lazy attachment proxy before the write path
         # touches the file's own attachment.
         dms_file.with_context(dms_version_restore=True).sudo().content = (
-            bytes(self.content) if self.content else False
+            BinaryBytes(bytes(self.content)) if self.content else False
         )
         return {
             "type": "ir.actions.client",
