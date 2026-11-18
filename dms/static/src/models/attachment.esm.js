@@ -6,27 +6,32 @@ import {Attachment} from "@mail/core/common/attachment_model";
 import {patch} from "@web/core/utils/patch";
 import {url} from "@web/core/utils/urls";
 
-// Odoo 20 : defaultSource (image, PDF, YouTube…) et downloadUrl dérivent tous de
-// urlRoute ; les fichiers DMS sont servis depuis le champ « content » de dms.file.
+// Records of dms.file are shown in the file viewer as if they were attachments:
+// their content must be served from the dms.file record, not from ir.attachment.
 patch(Attachment.prototype, {
+    get isDmsFile() {
+        return this.model_name === "dms.file";
+    },
     get urlRoute() {
-        if (this.model_name === "dms.file" && !(this.uploading && this.tmpUrl)) {
-            return this.isImage
-                ? `/web/image/dms.file/${this.id}/content`
-                : `/web/content/dms.file/${this.id}/content`;
+        if (this.isDmsFile) {
+            return "/web/content";
         }
         return super.urlRoute;
     },
-    // Aperçu texte : /mail/attachment/render_text attend un ir.attachment.
-    get textThumbnailUrl() {
-        if (this.model_name === "dms.file" && this.id > 0) {
-            return url(`/dms/file/render_text/${this.id}`, {head: "1"});
+    get urlQueryParams() {
+        if (this.isDmsFile) {
+            return {
+                model: "dms.file",
+                id: this.id,
+                field: "content",
+                filename_field: "name",
+            };
         }
-        return super.textThumbnailUrl;
+        return super.urlQueryParams;
     },
     get defaultSource() {
-        if (this.model_name === "dms.file" && this.isText) {
-            return url(`/dms/file/render_text/${this.id}`);
+        if (this.isDmsFile && this.isText) {
+            return url(this.urlRoute, this.urlQueryParams);
         }
         return super.defaultSource;
     },

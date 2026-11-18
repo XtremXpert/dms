@@ -14,7 +14,8 @@ from PIL import Image
 from odoo import api, fields, models, tools
 from odoo.exceptions import UserError, ValidationError
 from odoo.fields import Domain
-from odoo.tools import SQL, consteq, human_size
+from odoo.tools import consteq, human_size
+from odoo.tools.binary import BinaryBytes
 from odoo.tools.mimetypes import guess_mimetype
 
 from ..tools import file
@@ -26,7 +27,7 @@ class DMSFile(models.Model):
     _name = "dms.file"
     _description = "File"
 
-    _inherit = [
+    _inherit = [  # noqa: RUF012
         "portal.mixin",
         "dms.security.mixin",
         "dms.mixins.thumbnail",
@@ -45,7 +46,6 @@ class DMSFile(models.Model):
     )
     directory_id = fields.Many2one(
         comodel_name="dms.directory",
-        string="Directory",
         domain="[('permission_create', '=', True)]",
         context={"dms_directory_show_path": True},
         ondelete="restrict",
@@ -149,10 +149,6 @@ class DMSFile(models.Model):
             ):
                 one.image_1920 = one.content
 
-    def check_access(self, operation):
-        self.mapped("directory_id").check_access(operation)
-        return super().check_access(operation)
-
     def _compute_access_url(self):
         res = super()._compute_access_url()
         for item in self:
@@ -225,24 +221,17 @@ class DMSFile(models.Model):
         if self.storage_id.save_type in ["file", "attachment"]:
             new_vals["content_file"] = self.content
         else:
-            new_vals["content_binary"] = self.content or False
+            new_vals["content_binary"] = binary and BinaryBytes(binary)
         return new_vals
 
     @api.model
     def _get_binary_max_size(self):
-        # Odoo 20 : get_param -> get_int / get_str
-        return (
-            self.env["ir.config_parameter"]
-            .sudo()
-            .get_int("dms.binary_max_size", default=25)
-        )
+        return self.env["ir.config_parameter"].sudo().get_int("dms.binary_max_size", 25)
 
     @api.model
     def _get_forbidden_extensions(self):
         extensions = (
-            self.env["ir.config_parameter"]
-            .sudo()
-            .get_str("dms.forbidden_extensions", default="")
+            self.env["ir.config_parameter"].sudo().get_str("dms.forbidden_extensions")
         )
         return [extension.strip() for extension in extensions.split(",")]
 
@@ -267,7 +256,7 @@ class DMSFile(models.Model):
                 index += 1
             dms_file.write(
                 {
-                    "content": dms_file.with_context(**{}).content,
+                    "content": dms_file.with_context().content,
                     "storage_id": dms_file.directory_id.storage_id.id,
                 }
             )
@@ -374,31 +363,24 @@ class DMSFile(models.Model):
     def search_panel_select_multi_range(self, field_name, **kwargs):
         operator, directory_id = self._search_panel_directory(**kwargs)
         if field_name == "tag_ids":
-            # Ne compter que les fichiers lisibles par l'utilisateur (_search
-            # applique les droits DMS) ; sans dossier sélectionné, toutes les
-            # étiquettes restent listées, même à zéro.
-            domain = [("directory_id", operator, directory_id)] if directory_id else []
-            return self.env.execute_query_dict(
-                SQL(
-                    """
+            sql_query = """
                 SELECT t.name AS name, t.id AS id, c.name AS group_name,
                     c.id AS group_id, COUNT(r.fid) AS count
                 FROM dms_tag t
                 JOIN dms_category c ON t.category_id = c.id
-                LEFT JOIN dms_file_tag_rel r
-                    ON t.id = r.tid AND r.fid IN %s
+                LEFT JOIN dms_file_tag_rel r ON t.id = r.tid
+                WHERE %(filter_by_file_ids)s IS FALSE OR r.fid = ANY(%(file_ids)s)
                 GROUP BY c.name, c.id, t.name, t.id
-                %s
-                ORDER BY c.name, c.id, t.name, t.id
-                    """,
-                    self._search(domain).subselect(),
-                    SQL("HAVING COUNT(r.fid) > 0") if directory_id else SQL(),
-                    to_flush=[
-                        self._fields["tag_ids"],
-                        self.env["dms.tag"]._fields["category_id"],
-                    ],
-                )
+                ORDER BY c.name, c.id, t.name, t.id;
+            """
+            file_ids = []
+            if directory_id:
+                file_ids = self.search([("directory_id", operator, directory_id)]).ids
+            self.env.cr.execute(
+                sql_query,
+                {"file_ids": file_ids, "filter_by_file_ids": bool(directory_id)},
             )
+            return self.env.cr.dictfetchall()
         if directory_id and field_name in ["directory_id", "category_id"]:
             comodel_domain = kwargs.pop("comodel_domain", [])
             directory_comodel_domain = self._search_panel_domain(
@@ -449,17 +431,13 @@ class DMSFile(models.Model):
     def _compute_extension(self):
         for record in self:
             record.extension = file.guess_extension(
-                record.name,
-                record.mimetype,
-                bytes(record.content) if record.content else None,
+                record.name, record.mimetype, record.content.content
             )
 
     @api.depends("content")
     def _compute_mimetype(self):
         for record in self:
-            # Odoo 20 : un champ Binary vaut un BinaryValue (octets bruts)
-            binary = bytes(record.content) if record.content else b""
-            record.mimetype = guess_mimetype(binary)
+            record.mimetype = guess_mimetype(record.content.content)
 
     @api.depends("size")
     def _compute_human_size(self):
@@ -468,8 +446,6 @@ class DMSFile(models.Model):
 
     @api.depends("content_binary", "content_file", "attachment_id")
     def _compute_content(self):
-        # Odoo 20 : les valeurs binaires sont des BinaryValue (taille et contenu
-        # à la demande) ; plus de contexte bin_size / base64.
         for record in self:
             if record.content_file:
                 record.content = record.content_file
@@ -567,7 +543,7 @@ class DMSFile(models.Model):
         updates = defaultdict(set)
         for record in self:
             values = self._get_content_inital_vals()
-            binary = bytes(record.content) if record.content else b""
+            binary = record.content.content
             values = record._update_content_vals(values, binary)
             updates[tools.frozendict(values)].add(record.id)
         for vals, ids in updates.items():
@@ -594,9 +570,7 @@ class DMSFile(models.Model):
                 .create(
                     {
                         "name": vals["name"],
-                        "raw": self._fields["content"].convert_to_cache(
-                            vals["content"], self
-                        ),
+                        "raw": vals["content"],
                         "res_model": directory.res_model,
                         "res_id": directory.res_id,
                     }

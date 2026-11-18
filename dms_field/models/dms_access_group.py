@@ -17,7 +17,6 @@ class DmsAccessGroups(models.Model):
     company_id = fields.Many2one(
         compute="_compute_company_id",
         comodel_name="res.company",
-        string="Company",
         store=True,
     )
 
@@ -53,12 +52,9 @@ class DmsAccessGroups(models.Model):
     @api.constrains("dms_field_ref")
     def _check_dms_field_ref(self):
         for item in self.filtered("dms_field_ref"):
-            domain = Domain.AND(
-                [
-                    item._get_domain_for_item_from_dms_field_ref(item.dms_field_ref),
-                    [("id", "!=", item.id)],
-                ]
-            )
+            domain = Domain(
+                item._get_domain_for_item_from_dms_field_ref(item.dms_field_ref)
+            ) & Domain("id", "!=", item.id)
             if self.search(domain):
                 raise UserError(
                     self.env._(

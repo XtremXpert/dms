@@ -19,7 +19,6 @@
         "web",
     ],
     "data": [
-        "data/portal_entry_data.xml",
         # Security
         "security/security.xml",
         "security/ir.access.csv",
@@ -29,6 +28,7 @@
         "template/portal.xml",
         # Data
         "data/onboarding_data.xml",
+        "data/portal_entry_data.xml",
         # Views
         "views/dms_tag.xml",
         "views/dms_category.xml",
@@ -48,7 +48,6 @@
             "dms/static/src/models/*.js",
             "dms/static/src/js/fields/path_json/path_owl.esm.js",
             "dms/static/src/js/fields/preview_binary/preview_record.esm.js",
-            "dms/static/src/js/upload.esm.js",
             "dms/static/src/js/views/*.esm.js",
             # XML
             "dms/static/src/js/fields/path_json/path_owl.xml",

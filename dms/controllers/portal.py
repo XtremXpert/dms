@@ -34,8 +34,6 @@ class CustomerPortal(CustomerPortal):
         return item
 
     def _prepare_portal_counter_values(self, counter):
-        # Odoo 20 : /my/counters calcule chaque compteur à partir de
-        # (modèle, domaine, accès) ; _prepare_home_portal_values n'existe plus.
         if counter == "dms_directory_count":
             ids = request.env["dms.directory"]._get_own_root_directories()
             return "dms.directory", [("id", "in", ids)], "read"
@@ -286,7 +284,7 @@ class CustomerPortal(CustomerPortal):
 
         if res.attachment_id and request.env.user.has_group("base.group_portal"):
             res = res.sudo()
-        file_content = bytes(res.content) if res.content else b""
+        file_content = res.content.content
         content_type = ("Content-Type", "application/octet-stream")
         disposition_content = (
             "Content-Disposition",

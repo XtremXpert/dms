@@ -15,15 +15,13 @@ import {listView} from "@web/views/list/list_view";
 import {patch} from "@web/core/utils/patch";
 import {registry} from "@web/core/registry";
 
-// Odoo 20 : contrôleur dédié (l'envoi ne doit pas toucher toutes les vues liste)
-patch(FileListController.prototype, createFileUploadExtension());
 patch(FileListRenderer.prototype, createFileDropZoneExtension());
-FileListRenderer.template = "dms.ListRenderer";
+patch(FileListController.prototype, createFileUploadExtension());
 
 export const FileListView = {
     ...listView,
-    buttonTemplate: "dms.ListButtons",
     Controller: FileListController,
+    buttonTemplate: "dms.ListButtons",
     Renderer: FileListRenderer,
 };
 

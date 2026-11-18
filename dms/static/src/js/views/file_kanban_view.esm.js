@@ -9,22 +9,19 @@ import {
     createFileDropZoneExtension,
     createFileUploadExtension,
 } from "./dms_file_upload.esm";
+import {FileKanbanController} from "./file_kanban_controller.esm";
 import {FileKanbanRenderer} from "./file_kanban_renderer.esm";
-import {KanbanController} from "@web/views/kanban/kanban_controller";
 import {kanbanView} from "@web/views/kanban/kanban_view";
 import {patch} from "@web/core/utils/patch";
 import {registry} from "@web/core/registry";
 
-// Odoo 20 : contrôleur dédié (l'envoi ne doit pas toucher toutes les vues kanban)
-export class FileKanbanController extends KanbanController {}
-patch(FileKanbanController.prototype, createFileUploadExtension());
 patch(FileKanbanRenderer.prototype, createFileDropZoneExtension());
-FileKanbanRenderer.template = "dms.KanbanRenderer";
+patch(FileKanbanController.prototype, createFileUploadExtension());
 
 export const FileKanbanView = {
     ...kanbanView,
-    buttonTemplate: "dms.KanbanButtons",
     Controller: FileKanbanController,
+    buttonTemplate: "dms.KanbanButtons",
     Renderer: FileKanbanRenderer,
 };
 

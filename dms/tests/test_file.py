@@ -106,7 +106,7 @@ class FileFilestoreTestCase(StorageFileBaseCase):
         )
 
     @users("user-a")
-    @mute_logger("odoo.addons.base.models.ir_rule", "odoo.models")
+    @mute_logger("odoo.addons.base.models.ir_access", "odoo.models")
     def test_record_level_access(self):
         """Record-level access for the DMS access-group path: user-a is
         granted on ``directory_group_a`` / ``sub_directory_x`` but not on the
@@ -139,6 +139,54 @@ class FileFilestoreTestCase(StorageFileBaseCase):
                     "content": self.content_base64(),
                 }
             )
+
+    @users("user-a")
+    @mute_logger("odoo.addons.base.models.ir_access")
+    def test_read_by_id_denied(self):
+        """Reading an ungranted record by id must fail: since 20.0 the ORM
+        checks read access in sudo through ``filtered_domain()``, which relies
+        on the computed ``permission_*`` fields."""
+        forbidden_file = self.inaccessible_file.with_user(self.env.user)
+        self.assertFalse(forbidden_file.has_access("read"))
+        self.assertFalse(forbidden_file._filtered_access("read"))
+        self.assertFalse(forbidden_file.permission_read)
+        with self.assertRaises(AccessError):
+            forbidden_file.read(["name"])
+        allowed_file = self.file2.with_user(self.env.user)
+        self.assertTrue(allowed_file.has_access("read"))
+        self.assertTrue(allowed_file.permission_read)
+        self.assertEqual(allowed_file.read(["name"])[0]["id"], self.file2.id)
+
+    @mute_logger("odoo.addons.base.models.ir_access")
+    def test_read_by_id_denied_without_dms_group(self):
+        """An internal user without DMS access groups can't read DMS records."""
+        dms_file = self.file2.with_user(self.user)
+        self.assertFalse(dms_file.has_access("read"))
+        with self.assertRaises(AccessError):
+            dms_file.read(["name"])
+        with self.assertRaises(AccessError):
+            self.sub_directory_x.with_user(self.user).read(["name"])
+
+    def test_permissions_refresh_on_group_change(self):
+        """Permissions are not field dependencies: they must be refreshed
+        when the DMS access groups change in the same transaction."""
+        forbidden_file = self.inaccessible_file.with_user(self.user_a)
+        self.assertFalse(forbidden_file.permission_read)
+        self.assertFalse(forbidden_file.has_access("read"))
+        self.inaccessible_directory.group_ids = [(4, self.group_a.id)]
+        self.assertTrue(forbidden_file.permission_read)
+        self.assertTrue(forbidden_file.has_access("read"))
+
+    @mute_logger("odoo.addons.base.models.ir_access")
+    def test_hidden_storage_access(self):
+        """Only DMS managers can read hidden storages."""
+        self.storage.is_hidden = True
+        for user in (self.user, self.dms_user):
+            with self.assertRaises(AccessError):
+                self.storage.with_user(user).read(["name"])
+        self.assertTrue(self.storage.with_user(self.dms_manager_user).name)
+        self.storage.is_hidden = False
+        self.assertTrue(self.storage.with_user(self.dms_user).name)
 
     @users("user-a")
     def test_permission_search_polarity(self):
@@ -192,12 +240,12 @@ class FileFilestoreTestCase(StorageFileBaseCase):
         )
         oid = object_file.with_context(oid=True).content_file
         self.assertTrue(oid, msg="Content file is not empty (with oid)")
-        object_file.with_context(**{"show_content": True}).write(
+        object_file.with_context(show_content=True).write(
             {"content": base64.b64encode(b"\xff new content").decode()}
         )
         self.assertNotEqual(
             oid,
-            object_file.with_context(**{"oid": True}).content_file,
+            object_file.with_context(oid=True).content_file,
             msg="Content file has changed",
         )
         self.assertTrue(object_file.export_data(["content"]))

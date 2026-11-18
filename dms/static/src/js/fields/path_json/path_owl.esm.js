@@ -9,18 +9,15 @@ import {standardFieldProps} from "@web/views/fields/standard_field_props";
 import {useService} from "@web/core/utils/hooks";
 
 class DmsPathField extends Component {
-    // Odoo 20 / OWL 3 : props déclarées par useProps (les static props sont
-    // ignorées) ; le chemin est dérivé des props à chaque rendu.
-    props = useProps({...standardFieldProps});
+    static template = "dms.DmsPathField";
+    props = useProps(standardFieldProps);
 
     setup() {
-        super.setup();
         this.action = useService("action");
     }
 
     get data() {
-        const path_json = this.props.record.data && this.props.record.data.path_json;
-        return JSON.parse(path_json || "[]");
+        return JSON.parse(this.props.record.data.path_json || "[]");
     }
 
     _onNodeClicked(event) {
@@ -36,8 +33,6 @@ class DmsPathField extends Component {
         });
     }
 }
-
-DmsPathField.template = "dms.DmsPathField";
 
 const dmsPathField = {
     component: DmsPathField,

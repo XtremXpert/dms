@@ -1,17 +1,15 @@
-<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <!-- Copyright 2020 Creu Blanca
      License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl). -->
 <odoo>
-    <record model="ir.ui.view" id="dms_directory_dms_tree_view">
+    <record id="dms_directory_dms_tree_view" model="ir.ui.view">
         <field name="name">dms.directory.dms_tree (in dms_field)</field>
         <field name="model">dms.directory</field>
         <field name="type">dms_list</field>
         <field name="arch" type="xml">
-            <!-- Aucun champ : DmsTree charge ses données selon les droits DMS ;
-                 lire ici le nom des répertoires (champ en bypass_search_access)
-                 lèverait une AccessError à l'ouverture de la fiche pour un
-                 utilisateur sans accès au répertoire. -->
-            <dms_list />
+            <dms_list>
+                <field name="name" />
+            </dms_list>
         </field>
     </record>
 </odoo>

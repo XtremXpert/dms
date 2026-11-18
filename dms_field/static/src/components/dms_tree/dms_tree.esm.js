@@ -1,533 +1,388 @@
-/* Copyright 2024 Tecnativa - Carlos Roca
+/* Copyright 2026 Tecnativa - Carlos Roca
  * License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl). */
-
-// Odoo 20 : jQuery (et donc jsTree) n'existe plus. Arborescence DMS en OWL 3,
-// autonome : elle charge elle-même stockages, répertoires et fichiers.
-//   - mode fiche : resModel + resId -> répertoires liés à l'enregistrement ;
-//   - mode liste : rootModel (dms.storage / dms.directory) + rootDomain.
-import {Component, proxy, signal, t, useProps} from "@odoo/owl";
-import {DmsUploadError, uploadDmsFiles} from "@dms/js/upload.esm";
-import {ConfirmationDialog} from "@web/core/confirmation_dialog/confirmation_dialog";
-import {FormViewDialog} from "@web/views/view_dialogs/form_view_dialog";
+import {Component, onWillDestroy, signal, t, useOnChange, useProps} from "@odoo/owl";
 import {_t} from "@web/core/l10n/translation";
-import {useFileViewer} from "@web/core/file_viewer/file_viewer_hook";
-import {useLayoutEffect} from "@web/owl2/utils";
-import {useService} from "@web/core/utils/hooks";
+import {mimetype2icon} from "../../utils/mimetype.esm";
 
-const DIRECTORY_FIELDS = [
-    "name",
-    "parent_id",
-    "permission_read",
-    "permission_create",
-    "permission_write",
-    "permission_unlink",
-    "count_directories",
-    "count_files",
-    "count_total_directories",
-    "count_total_files",
-    "count_elements",
-    "human_size",
-    "icon_url",
-];
-const FILE_FIELDS = [
-    "name",
-    "mimetype",
-    "human_size",
-    "icon_url",
-    "permission_read",
-    "permission_create",
-    "permission_write",
-    "permission_unlink",
-    "is_locked",
-    "is_lock_editor",
-];
+// Data type of the nodes dragged inside the tree. It is not "Files", so the
+// upload dropzones ignore these drags.
+export const DMS_NODE_MIMETYPE = "application/x-dms-tree-node";
+// Time hovering a closed folder while dragging before it is opened (ms)
+const DRAG_EXPAND_DELAY = 700;
 
-const MIMETYPE_ICONS = [
-    ["image", /^image\//],
-    ["music_note", /^audio\//],
-    ["movie", /^video\//],
-    ["picture_as_pdf", /^application\/pdf$/],
-    ["code", /^(text\/(html|javascript|css|xml)|application\/(javascript|json|xml))$/],
-    ["inventory_2", /(zip|tar|rar|7z|compress|bzip2)/],
-    ["article", /(word|opendocument\.text|rtf|msword)/],
-    ["attach_file", /(sheet|excel|presentation|powerpoint)/],
-];
+/**
+ * @param {import("./dms_tree_model.esm").DmsTreeNode} node
+ * @returns {String} Material Symbols icon name
+ */
+export function getNodeIcon(node) {
+    switch (node.data?.resModel) {
+        case "dms.storage":
+            return "database";
+        case "dms.directory":
+            return node.isOpen ? "folder_open" : "folder";
+        case "dms.file":
+            return mimetype2icon(node.data.data?.mimetype);
+    }
+    return "description";
+}
 
-export class DmsTree extends Component {
-    static template = "dms_field.DmsTree";
+export class DmsTreeNode extends Component {
+    static template = "dms_field.DmsTreeNode";
+
     props = useProps({
-        resModel: t.string().optional(),
-        resId: t.or([t.number(), t.boolean()]).optional(),
-        rootModel: t.string().optional(),
-        rootDomain: t.array().optional(),
-        readonly: t.boolean().optional(),
-        // Mode fiche : nombre de répertoires liés, visibles ou non (valeur du
-        // champ dms_directory_ids) ; évite de proposer d'en créer un de trop.
-        linkedCount: t.number().optional(),
+        node: t.object(),
+        tree: t.object(),
     });
 
+    rootRef = signal.ref();
+    inputRef = signal.ref();
+
     setup() {
-        this.orm = useService("orm");
-        this.http = useService("http");
-        this.dialog = useService("dialog");
-        this.notification = useService("notification");
-        this.store = useService("mail.store");
-        this.fileViewer = useFileViewer();
-        this.fileInput = signal.ref();
-        this.renameInput = signal.ref();
-        this.state = proxy({
-            roots: [],
-            loaded: false,
-            selected: null,
-            renaming: null,
-            renameValue: "",
-            dropTarget: null,
-            canCreateRecordDirectory: false,
-        });
-        useLayoutEffect(
-            () => {
-                this.reload();
-            },
-            () => [this.props.resModel, this.props.resId, this.props.rootModel]
+        // Move the DOM focus along with the keyboard navigation
+        useOnChange(
+            () => [this.isFocused, this.rootRef()],
+            (isFocused, el) => {
+                if (isFocused && el && this.props.tree.hasFocusWithin()) {
+                    el.focus();
+                }
+            }
         );
-        // Focus du champ de renommage une fois rendu.
-        useLayoutEffect(
+        useOnChange(
+            () => [this.inputRef()],
             (input) => {
                 if (input) {
                     input.focus();
                     input.select();
                 }
-            },
-            () => [this.renameInput()]
+            }
         );
     }
 
-    // ------------------------------------------------------------------
-    // Chargement
-    // ------------------------------------------------------------------
-
-    /** Point d'extension (ex. hr_dms_field : hr.employee.public -> hr.employee). */
-    sanitizeDMSModel(model) {
-        return model;
+    get model() {
+        return this.props.tree.props.model;
     }
 
-    get isRecordMode() {
-        return Boolean(this.props.resModel);
+    get node() {
+        return this.props.node;
     }
 
-    async reload() {
-        this.state.selected = null;
-        this.state.renaming = null;
-        let roots = [];
-        let canCreate = false;
-        if (this.isRecordMode) {
-            if (this.props.resId) {
-                const model = this.sanitizeDMSModel(this.props.resModel);
-                const directories = await this.searchParents([
-                    ["res_model", "=", model],
-                    ["res_id", "=", this.props.resId],
-                    ["storage_id.save_type", "!=", "attachment"],
-                ]);
-                roots = directories.map((d) => this.makeDirectoryNode(d, true));
-                if (
-                    !roots.length &&
-                    !this.props.linkedCount &&
-                    model !== "dms.field.template"
-                ) {
-                    canCreate =
-                        (await this.orm.searchCount("dms.field.template", [
-                            ["model", "=", model],
-                        ])) > 0;
-                }
-            }
-        } else if (this.props.rootModel === "dms.directory") {
-            const directories = await this.searchParents(this.props.rootDomain || []);
-            roots = directories.map((d) => this.makeDirectoryNode(d));
-        } else {
-            const storages = await this.orm.searchRead(
-                "dms.storage",
-                this.props.rootDomain || [],
-                ["name", "count_storage_directories"]
-            );
-            roots = storages.map((s) => this.makeStorageNode(s));
-        }
-        this.state.roots = roots;
-        this.state.canCreateRecordDirectory = canCreate;
-        this.state.loaded = true;
-        // Comme avant (open_all de jsTree) : déplier le premier niveau.
-        for (const node of this.state.roots) {
-            if (node.hasChildren) {
-                await this.toggle(node, true);
-            }
-        }
+    get level() {
+        return this.model.getLevel(this.node);
     }
 
-    searchParents(domain) {
-        return this.orm.call("dms.directory", "search_read_parents", [], {
-            domain,
-            fields: DIRECTORY_FIELDS,
-        });
+    get icon() {
+        return getNodeIcon(this.node);
     }
 
-    async loadChildren(node) {
-        let children = [];
-        if (node.model === "dms.storage") {
-            const directories = await this.searchParents([["storage_id", "=", node.id]]);
-            children = directories.map((d) => this.makeDirectoryNode(d));
-        } else if (node.model === "dms.directory") {
-            const [directories, files] = await Promise.all([
-                this.orm.searchRead(
-                    "dms.directory",
-                    [["parent_id", "=", node.id]],
-                    DIRECTORY_FIELDS,
-                    {order: "name"}
-                ),
-                this.orm.searchRead(
-                    "dms.file",
-                    [["directory_id", "=", node.id]],
-                    FILE_FIELDS,
-                    {order: "name"}
-                ),
-            ]);
-            children = [
-                ...directories.map((d) => this.makeDirectoryNode(d)),
-                ...files.map((f) => this.makeFileNode(f)),
-            ];
-        }
-        node.children = children;
-        node.hasChildren = children.length > 0;
+    get isSelected() {
+        return this.model.selectedId === this.node.id;
     }
 
-    makeStorageNode(storage) {
-        return {
-            key: `dms.storage_${storage.id}`,
-            model: "dms.storage",
-            id: storage.id,
-            name: storage.name,
-            data: storage,
-            hasChildren: storage.count_storage_directories > 0,
-            children: null,
-            open: false,
-            perms: {read: true, create: false, write: false, unlink: false},
-        };
+    get isFocused() {
+        const focused = this.model.focusedNode || this.model.roots[0];
+        return focused?.id === this.node.id;
     }
 
-    makeDirectoryNode(directory, isRecordRoot = false) {
-        return {
-            key: `dms.directory_${directory.id}`,
-            model: "dms.directory",
-            id: directory.id,
-            name: directory.name,
-            data: directory,
-            hasChildren: directory.count_directories + directory.count_files > 0,
-            children: null,
-            open: false,
-            // Le répertoire racine d'une fiche est géré par le modèle de champ :
-            // ni renommage ni suppression depuis l'arbre (comme en 18.0).
-            isRecordRoot,
-            perms: {
-                read: directory.permission_read,
-                create: directory.permission_create,
-                write: directory.permission_write && !isRecordRoot,
-                unlink: directory.permission_unlink && !isRecordRoot,
-            },
-        };
+    get isRenaming() {
+        return this.model.renamingId === this.node.id;
     }
 
-    makeFileNode(file) {
-        const unlocked = !file.is_locked || file.is_lock_editor;
-        return {
-            key: `dms.file_${file.id}`,
-            model: "dms.file",
-            id: file.id,
-            name: file.name,
-            data: file,
-            hasChildren: false,
-            children: [],
-            open: false,
-            perms: {
-                read: file.permission_read,
-                create: false,
-                write: file.permission_write && unlocked,
-                unlink: file.permission_unlink && unlocked,
-            },
-        };
+    get editableName() {
+        return this.model.getEditableName(this.node);
     }
 
-    // ------------------------------------------------------------------
-    // Affichage
-    // ------------------------------------------------------------------
-
-    get readonly() {
-        return Boolean(this.props.readonly);
+    get isCut() {
+        return this.model.cutId === this.node.id;
     }
 
-    /** Odoo 20 : icônes Material Symbols (sous-ensemble livré par web). */
-    iconName(node) {
-        if (node.model === "dms.storage") {
-            return "database";
-        }
-        if (node.model === "dms.directory") {
-            return "folder";
-        }
-        const mimetype = node.data.mimetype || "";
-        for (const [icon, pattern] of MIMETYPE_ICONS) {
-            if (pattern.test(mimetype)) {
-                return icon;
-            }
-        }
-        return "description";
+    get isDraggable() {
+        return this.model.canDrag(this.node);
     }
 
-    isSelected(node) {
-        return this.state.selected?.key === node.key;
+    get isDragging() {
+        return this.model.dragId === this.node.id;
     }
 
-    async toggle(node, forceOpen = false) {
-        if (!node.hasChildren) {
-            return;
-        }
-        if (node.open && !forceOpen) {
-            node.open = false;
-            return;
-        }
-        if (node.children === null) {
-            await this.loadChildren(node);
-        }
-        node.open = true;
+    get isDropTarget() {
+        return this.model.dropTargetId === this.node.id;
     }
 
-    select(node) {
-        if (this.state.renaming && this.state.renaming.key !== node.key) {
-            this.state.renaming = null;
-        }
-        this.state.selected = node;
+    get toggleTitle() {
+        return this.node.isOpen ? _t("Collapse") : _t("Expand");
     }
 
-    onNodeDblClick(node) {
-        if (node.model === "dms.file") {
-            this.preview(node);
-        } else {
-            this.toggle(node);
+    onFocus(ev) {
+        // Keep the model in sync when the node gets the focus without a click
+        // (e.g. with the Tab key)
+        if (
+            ev.target === this.rootRef() &&
+            this.model.focusedNode?.id !== this.node.id
+        ) {
+            this.model.focus(this.node);
         }
     }
 
-    // ------------------------------------------------------------------
-    // Actions
-    // ------------------------------------------------------------------
+    onClickRow() {
+        this.model.select(this.node);
+    }
 
-    /** Recharge les enfants d'un répertoire (ou toute l'arborescence). */
-    async refresh(node) {
-        if (!node) {
-            return this.reload();
-        }
-        if (node.model === "dms.storage") {
-            node.children = null;
-            node.hasChildren = true;
-            return this.toggle(node, true);
-        }
-        const [fresh] = await this.orm.read(node.model, [node.id], DIRECTORY_FIELDS);
-        if (fresh) {
-            Object.assign(node, this.makeDirectoryNode(fresh, node.isRecordRoot), {
-                children: null,
-            });
-        }
-        await this.toggle(node, true);
-        if (this.state.selected?.key === node.key) {
-            this.state.selected = node;
+    onDblClickRow() {
+        this.model.toggle(this.node);
+    }
+
+    onDblClickLabel() {
+        // Rename the node, or open/close it if it can't be renamed
+        if (!this.props.tree.props.onAction("rename", this.node)) {
+            this.model.toggle(this.node);
         }
     }
 
-    findParent(target, nodes = this.state.roots, parent = null) {
-        for (const node of nodes) {
-            if (node.key === target.key) {
-                return parent;
-            }
-            if (node.children) {
-                const found = this.findParent(target, node.children, node);
-                if (found !== undefined) {
-                    return found;
-                }
-            }
-        }
-        return undefined;
+    onClickToggle() {
+        this.model.focus(this.node);
+        this.model.toggle(this.node);
     }
 
-    async createRecordDirectory() {
-        await this.orm.call("dms.field.template", "create_dms_directory", [], {
-            context: {
-                res_model: this.sanitizeDMSModel(this.props.resModel),
-                res_id: this.props.resId,
-            },
-        });
-        await this.reload();
+    onContextMenu(ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.props.tree.openContextMenu(this.node, ev.currentTarget);
     }
 
-    addDirectory(node) {
-        this.dialog.add(FormViewDialog, {
-            resModel: "dms.directory",
-            title: _t("Add Directory: %s", node.name),
-            context: {default_parent_id: node.id, default_parent_directory_id: node.id},
-            onRecordSaved: () => this.refresh(node),
-        });
-    }
-
-    addFile(node) {
-        this.dialog.add(FormViewDialog, {
-            resModel: "dms.file",
-            title: _t("Add File: %s", node.name),
-            context: {default_directory_id: node.id},
-            onRecordSaved: () => this.refresh(node),
-        });
-    }
-
-    openRecord(node) {
-        this.dialog.add(FormViewDialog, {
-            resModel: node.model,
-            resId: node.id,
-            title: _t("Open: %s", node.name),
-            onRecordSaved: () => this.refresh(this.findParent(node)),
-        });
-    }
-
-    startRename(node) {
-        this.state.renaming = node;
-        this.state.renameValue = node.name;
-    }
-
-    onRenameInput(ev) {
-        this.state.renameValue = ev.target.value;
-    }
-
-    async onRenameKeydown(ev) {
+    onRenameKeydown(ev) {
+        // Keep the keys for the input, not for the tree navigation
+        ev.stopPropagation();
         if (ev.key === "Enter") {
             ev.preventDefault();
-            await this.confirmRename();
+            this.commitRename(ev.target.value);
         } else if (ev.key === "Escape") {
-            this.state.renaming = null;
+            ev.preventDefault();
+            this.model.cancelRename();
+            this.rootRef()?.focus();
         }
     }
 
-    async confirmRename() {
-        const node = this.state.renaming;
-        const name = (this.state.renameValue || "").trim();
-        this.state.renaming = null;
-        if (!node || !name || name === node.name) {
+    onRenameBlur(ev) {
+        if (this.isRenaming) {
+            this.commitRename(ev.target.value);
+        }
+    }
+
+    commitRename(value) {
+        return this.model.rename(this.node, value);
+    }
+
+    // -------------------------------------------------------------------------
+    // Drag and drop to move nodes
+    // -------------------------------------------------------------------------
+
+    /**
+     * @param {DragEvent} ev
+     */
+    onDragStart(ev) {
+        // Only the row of this node, not the ones of its children
+        ev.stopPropagation();
+        if (!this.model.startDrag(this.node)) {
+            ev.preventDefault();
             return;
         }
-        try {
-            await this.orm.write(node.model, [node.id], {name});
-            node.name = name;
-            node.data.name = name;
-        } catch (error) {
-            this.notification.add(error.data?.message || String(error), {
-                type: "danger",
-            });
+        ev.dataTransfer.setData(DMS_NODE_MIMETYPE, this.node.id);
+        ev.dataTransfer.effectAllowed = "move";
+    }
+
+    /**
+     * @param {DragEvent} ev
+     */
+    onDragOver(ev) {
+        if (!this.model.dragId) {
+            // Not a node of this tree (e.g. files from the computer)
+            return;
         }
-    }
-
-    remove(node) {
-        this.dialog.add(ConfirmationDialog, {
-            title: _t("Delete"),
-            body: _t("Delete “%s”?", node.name),
-            confirmLabel: _t("Delete"),
-            confirm: async () => {
-                await this.orm.unlink(node.model, [node.id]);
-                if (this.state.selected?.key === node.key) {
-                    this.state.selected = null;
-                }
-                await this.refresh(this.findParent(node));
-            },
-            cancel: () => {},
-        });
-    }
-
-    preview(node) {
-        const attachment = this.store["ir.attachment"].insert({
-            id: node.id,
-            filename: node.name,
-            name: node.name,
-            mimetype: node.data.mimetype,
-            model_name: "dms.file",
-        });
-        this.fileViewer.open(attachment);
-    }
-
-    downloadUrl(node) {
-        return `/web/content/dms.file/${node.id}/content?download=true`;
-    }
-
-    // ------------------------------------------------------------------
-    // Envoi de fichiers (bouton ou glisser-déposer sur un répertoire)
-    // ------------------------------------------------------------------
-
-    pickFiles() {
-        this.fileInput()?.click();
-    }
-
-    async onFileInputChange(ev) {
-        const node = this.state.selected;
-        const files = [...ev.target.files];
-        ev.target.value = "";
-        if (node && files.length) {
-            await this.upload(node, files);
+        const target = this.model.dragOver(this.node);
+        if (!target) {
+            ev.dataTransfer.dropEffect = "none";
+            this.props.tree.cancelExpand();
+            return;
         }
+        ev.preventDefault();
+        ev.dataTransfer.dropEffect = "move";
+        this.props.tree.scheduleExpand(target === this.node ? this.node : null);
     }
 
-    canDropOn(node) {
-        return !this.readonly && node.model === "dms.directory" && node.perms.create;
-    }
-
-    onDragOver(ev, node) {
-        if (!this.canDropOn(node) || !ev.dataTransfer?.types?.includes("Files")) {
+    /**
+     * @param {DragEvent} ev
+     */
+    onDrop(ev) {
+        if (!this.model.dragId) {
             return;
         }
         ev.preventDefault();
         ev.stopPropagation();
-        this.state.dropTarget = node.key;
+        this.props.tree.cancelExpand();
+        return this.model.drop(this.node);
     }
 
-    onDragLeave(ev, node) {
-        if (this.state.dropTarget === node.key && !ev.currentTarget.contains(ev.relatedTarget)) {
-            this.state.dropTarget = null;
-        }
+    onDragEnd() {
+        this.props.tree.cancelExpand();
+        this.model.endDrag();
+    }
+}
+DmsTreeNode.components = {DmsTreeNode};
+
+export class DmsTree extends Component {
+    static template = "dms_field.DmsTree";
+    static components = {DmsTreeNode};
+
+    props = useProps({
+        model: t.object(),
+        // (node, targetElement) => void
+        onContextMenu: t.function().optional(() => () => undefined),
+        // (actionKey, node) => Boolean (whether the action has been run), used
+        // for the keyboard shortcuts (F2, Delete) and the double click on names
+        onAction: t.function().optional(() => () => false),
+    });
+
+    rootRef = signal.ref();
+
+    setup() {
+        this.expandTimeout = null;
+        this.expandNodeId = null;
+        onWillDestroy(() => this.cancelExpand());
     }
 
-    async onDrop(ev, node) {
-        if (!this.canDropOn(node)) {
+    get model() {
+        return this.props.model;
+    }
+
+    /**
+     * Open the closed folder hovered while dragging after a short delay.
+     *
+     * @param {import("./dms_tree_model.esm").DmsTreeNode|null} node
+     */
+    scheduleExpand(node) {
+        if (!node || node.isOpen || !node.hasChildren) {
+            this.cancelExpand();
             return;
         }
-        ev.preventDefault();
-        ev.stopPropagation();
-        this.state.dropTarget = null;
-        const files = [...(ev.dataTransfer?.files || [])];
-        if (files.length) {
-            await this.upload(node, files);
+        if (this.expandNodeId === node.id) {
+            return;
         }
-    }
-
-    async upload(node, files) {
-        let results = [];
-        try {
-            results = await uploadDmsFiles(this.http, node.id, files);
-        } catch (error) {
-            if (!(error instanceof DmsUploadError)) {
-                throw error;
+        this.cancelExpand();
+        this.expandNodeId = node.id;
+        this.expandTimeout = setTimeout(() => {
+            this.expandTimeout = null;
+            this.expandNodeId = null;
+            if (this.model.dragId) {
+                this.model.open(node);
             }
-            this.notification.add(error.message, {type: "danger"});
+        }, DRAG_EXPAND_DELAY);
+    }
+
+    cancelExpand() {
+        clearTimeout(this.expandTimeout);
+        this.expandTimeout = null;
+        this.expandNodeId = null;
+    }
+
+    /**
+     * @param {DragEvent} ev
+     */
+    onDragLeave(ev) {
+        if (this.model.dragId && !this.rootRef()?.contains(ev.relatedTarget)) {
+            this.cancelExpand();
+            this.model.dragOver(null);
+        }
+    }
+
+    hasFocusWithin() {
+        const el = this.rootRef();
+        return Boolean(el && el.contains(document.activeElement));
+    }
+
+    openContextMenu(node, target) {
+        this.model.select(node);
+        this.props.onContextMenu(node, target);
+    }
+
+    /**
+     * Keyboard navigation, following the WAI-ARIA tree view pattern.
+     *
+     * @param {KeyboardEvent} ev
+     */
+    onKeydown(ev) {
+        if (ev.target.closest("input, textarea")) {
             return;
         }
-        const errors = results.filter((r) => r.error);
-        for (const {error} of errors) {
-            this.notification.add(error, {type: "danger"});
+        const visibleNodes = this.model.getVisibleNodes();
+        if (!visibleNodes.length) {
+            return;
         }
-        if (results.length > errors.length) {
-            this.notification.add(
-                _t("%s file(s) uploaded", results.length - errors.length),
-                {type: "success"}
+        const key = ev.shiftKey && ev.key === "F10" ? "ContextMenu" : ev.key;
+        const handler = this.keyHandlers[key];
+        if (!handler) {
+            return;
+        }
+        const node = this.model.focusedNode || visibleNodes[0];
+        handler(node, visibleNodes);
+        ev.preventDefault();
+        ev.stopPropagation();
+    }
+
+    /**
+     * @returns {Object} {key: (node, visibleNodes) => void}
+     */
+    get keyHandlers() {
+        const focusAt = (visibleNodes, index) =>
+            this.model.focus(
+                visibleNodes[Math.max(0, Math.min(index, visibleNodes.length - 1))]
             );
+        const indexOf = (visibleNodes, node) =>
+            visibleNodes.findIndex((n) => n.id === node.id);
+        const openContextMenu = (node) =>
+            this.openContextMenu(node, this.getRowElement(node));
+        const select = (node) => this.model.select(node);
+        return {
+            ArrowDown: (node, nodes) => focusAt(nodes, indexOf(nodes, node) + 1),
+            ArrowUp: (node, nodes) => focusAt(nodes, indexOf(nodes, node) - 1),
+            Home: (node, nodes) => focusAt(nodes, 0),
+            End: (node, nodes) => focusAt(nodes, nodes.length - 1),
+            ArrowRight: (node) => this.expandOrFocusChild(node),
+            ArrowLeft: (node) => this.collapseOrFocusParent(node),
+            Enter: select,
+            " ": select,
+            F2: (node) => this.props.onAction("rename", node),
+            Delete: (node) => this.props.onAction("delete", node),
+            ContextMenu: openContextMenu,
+        };
+    }
+
+    expandOrFocusChild(node) {
+        if (node.hasChildren && !node.isOpen) {
+            this.model.open(node);
+        } else if (node.isOpen && node.children.length) {
+            this.model.focus(node.children[0]);
         }
-        await this.refresh(node);
-        this.select(node);
+    }
+
+    collapseOrFocusParent(node) {
+        if (node.isOpen) {
+            this.model.close(node);
+            return;
+        }
+        const parent = this.model.getParent(node);
+        if (parent) {
+            this.model.focus(parent);
+        }
+    }
+
+    /**
+     * @param {import("./dms_tree_model.esm").DmsTreeNode} node
+     * @returns {HTMLElement|null}
+     */
+    getRowElement(node) {
+        return (
+            this.rootRef()?.querySelector(
+                `[data-node-id="${CSS.escape(node.id)}"] > .o_dms_tree_row`
+            ) || null
+        );
     }
 }

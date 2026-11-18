@@ -40,21 +40,18 @@ class DmsStorage(models.Model):
         for storage in self:
             if storage.save_type == "attachment":
                 continue
-            # Sans modèle lié, « res_model not in [] » vaut TRUE en Odoo 20 :
-            # tout stockage ayant des répertoires devenait non modifiable (ex.
-            # passage du stockage en base au stockage fichier).
-            if storage.model_ids and self.env["dms.directory"].search(
+            if not storage.model_ids:
+                continue
+            if self.env["dms.directory"].search(
                 [
                     ("storage_id", "=", storage.id),
                     ("is_root_directory", "=", True),
-                    ("res_model", "!=", False),
                     (
                         "res_model",
                         "not in",
                         storage.mapped("model_ids.model"),
                     ),
-                ],
-                limit=1,
+                ]
             ):
                 raise ValidationError(
                     self.env._(

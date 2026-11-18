@@ -164,23 +164,25 @@
                 <searchpanel>
                     <field
                         name="parent_id"
-                        icon="fa-folder"
-                        limit="0"
+                        icon="folder"
+                        icon_class="oi-filled"
+                        limit="false"
                         enable_counters="1"
                     />
                     <field
                         name="category_id"
                         select="multi"
                         groupby="parent_id"
-                        icon="fa-users"
-                        limit="0"
+                        icon="group"
+                        icon_class="oi-filled"
+                        limit="false"
                     />
                     <field
                         name="tag_ids"
                         select="multi"
-                        icon="fa-tag"
+                        icon="label"
                         groupby="category_id"
-                        limit="0"
+                        limit="false"
                         enable_counters="1"
                     />
                 </searchpanel>
@@ -193,7 +195,6 @@
         <field name="arch" type="xml">
             <kanban
                 class="mk_directory_kanban_view o_kanban_small_column o_kanban_mobile"
-                banner_route="/onboarding/document_onboarding_file"
                 highlight_color="color"
             >
                 <field name="id" />
@@ -228,7 +229,7 @@
                                             type="object"
                                             name="action_dms_directories_all_directory"
                                         >
-                                            <i class="fa fa-folder-o" />
+                                            <i class="oi" data-icon="folder" />
                                             Directories
                                         </a>
                                     </div>
@@ -237,7 +238,7 @@
                                             type="object"
                                             name="action_dms_files_all_directory"
                                         >
-                                            <i class="fa fa-file-o" />
+                                            <i class="oi" data-icon="description" />
                                             Files
                                         </a>
                                     </div>
@@ -251,7 +252,7 @@
                                     </h5>
                                     <div role="menuitem">
                                         <a type="open">
-                                            <i class="fa fa-external-link" />
+                                            <i class="oi" data-icon="open_in_new" />
                                             Open
                                         </a>
                                     </div>
@@ -259,8 +260,8 @@
                                         role="menuitem"
                                         t-if="record.permission_write.raw_value"
                                     >
-                                        <a type="edit">
-                                            <i class="fa fa-pencil-square-o" />
+                                        <a type="open">
+                                            <i class="oi" data-icon="edit_square" />
                                             Edit
                                         </a>
                                     </div>
@@ -269,7 +270,7 @@
                                         t-if="record.permission_unlink.raw_value"
                                     >
                                         <a type="delete">
-                                            <i class="fa fa-trash-o" />
+                                            <i class="oi" data-icon="delete" />
                                             Delete
                                         </a>
                                     </div>
@@ -277,10 +278,10 @@
                             </div>
                             <div class="o_kanban_card_manage_actions row">
                                 <div
+                                    t-if="record.permission_write.raw_value"
+                                    class="col-6"
                                     role="menuitem"
                                     aria-haspopup="true"
-                                    class="col-6"
-                                    t-if="record.permission_write.raw_value"
                                 >
                                     <field name="color" widget="kanban_color_picker" />
                                 </div>
@@ -308,7 +309,6 @@
                                     />
                                     <field
                                         name="write_date"
-                                        widget="datetime"
                                         options="{'show_time': false}"
                                     />
                                 </div>
@@ -323,7 +323,10 @@
                                             class="me-1"
                                             t-att-title="record.count_directories_title.raw_value"
                                         >
-                                            <i class="fa fa-xs fa-folder" />
+                                            <i
+                                                class="oi oi-filled oi-sm"
+                                                data-icon="folder"
+                                            />
                                             <span>&amp;nbsp;</span>
                                             <span
                                                 class="total_items"
@@ -338,7 +341,10 @@
                                             class="me-1"
                                             t-att-title="record.count_files_title.raw_value"
                                         >
-                                            <i class="fa fa-xs fa-file" />
+                                            <i
+                                                class="oi oi-filled oi-sm"
+                                                data-icon="description"
+                                            />
                                             <span>&amp;nbsp;</span>
                                             <span
                                                 class="total_items"
@@ -350,11 +356,13 @@
                                 </div>
                                 <div class="d-flex ms-auto">
                                     <a
+                                        class="oi oi-lg favorite_sign_button"
+                                        t-att-class="{'oi-filled favorite_sign_button_enabled': record.starred.raw_value}"
                                         role="button"
                                         type="object"
                                         name="toggle_starred"
-                                        t-attf-class="fa fa-lg fa-star#{record.starred.raw_value ? '  favorite_sign_button_enabled' : '-o'} favorite_sign_button"
                                         title="Starred"
+                                        data-icon="star"
                                     />
                                     <img
                                         t-attf-src="/web/image/res.users/#{record.create_uid.raw_value}/avatar_128"
@@ -397,7 +405,7 @@
                             type="object"
                             name="action_dms_directories_all_directory"
                             class="oe_stat_button"
-                            icon="fa-folder-open-o"
+                            icon="folder_open"
                         >
                             <field
                                 string="Subdirectories"
@@ -409,7 +417,7 @@
                             type="object"
                             name="action_dms_files_all_directory"
                             class="oe_stat_button"
-                            icon="fa-file-text-o"
+                            icon="article"
                         >
                             <field
                                 string="Files"
@@ -524,7 +532,7 @@
                         <page name="page_directories" string="Subdirectories">
                             <field
                                 name="child_directory_ids"
-                                context="{'default_parent_id': id, 'mail_create_nolog': True}"
+                                context="{'active_model': 'dms.directory', 'active_id': id, 'mail_create_nolog': True}"
                                 readonly="not permission_create"
                             >
                                 <list limit="10">

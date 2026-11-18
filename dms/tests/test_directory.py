@@ -3,7 +3,6 @@
 # Copyright 2021-2022 Tecnativa - Víctor Martínez
 # Copyright 2024 Subteno - Timothée Vannier (https://www.subteno.com).
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
-import base64
 import os
 
 from odoo import Command
@@ -241,6 +240,15 @@ class DirectoryTestCaseBase(StorageDatabaseBaseCase):
         self.assertTrue(self.directory.size, msg="The directory should have a size")
 
     @users("dms-manager", "dms-user")
+    def test_check_name_root_sub(self):
+        """A sub-directory and a root directory can have the same name."""
+        new_sub_directory = self.create_directory(directory=self.directory)
+        generated_name = new_sub_directory.name
+        new_root_directory = self.create_directory(storage=self.storage)
+        new_root_directory.name = generated_name
+        self.assertEqual(new_root_directory.name, new_sub_directory.name)
+
+    @users("dms-manager", "dms-user")
     def test_name_get(self):
         directory = self.subdirectory.with_context(dms_directory_show_path=True)
         self.assertTrue(
@@ -304,10 +312,10 @@ class DirectoryMailTestCase(StorageDatabaseBaseCase):
             self.env["mail.thread"].message_process(None, file.read())
         with open(os.path.join(_path, "tests", "data", "mail02.eml")) as file:
             self.env["mail.thread"].message_process(None, file.read())
-        # Check file created from mail02.eml further, ensure we can decode b64 contents.
+        # Check file created from mail02.eml further, ensure contents are decoded.
         dms_file = self.env["dms.file"].search([], limit=1, order="id desc")
         self.assertEqual(dms_file.name, "bookmarks-really-short.html")
-        self.assertNotEqual(base64.b64decode(dms_file.content), dms_file.content)
+        self.assertTrue(dms_file.content.content.startswith(b"<!DOCTYPE"))
 
     @mute_logger("odoo.addons.mail.mail_thread")
     def test_mail_alias_directory(self):

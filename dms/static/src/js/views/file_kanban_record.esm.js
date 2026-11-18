@@ -29,7 +29,7 @@ export class FileKanbanRecord extends KanbanRecord {
      *
      * Override to open the preview upon clicking the image, if compatible.
      */
-    onGlobalClick(ev) {
+    onGlobalClick(ev, newWindow) {
         const self = this;
 
         if (ev.target.closest(".o_kanban_dms_file_preview")) {
@@ -54,6 +54,6 @@ export class FileKanbanRecord extends KanbanRecord {
             this.fileViewer.open(attachment);
             return;
         }
-        return super.onGlobalClick(ev);
+        return super.onGlobalClick(ev, newWindow);
     }
 }

@@ -1,11 +1,14 @@
 [project]
 name = "odoo-addons-oca-dms"
-version = "19.0.20260903.0"
+version = "20.0.20261117.0"
 dependencies = [
-    "odoo-addon-dms==19.0.*",
+    "odoo-addon-dms==20.0.*",
+    "odoo-addon-dms_field==20.0.*",
+    "odoo-addon-hr_dms_field==20.0.*",
+    "odoo-addon-web_editor_media_dialog_dms==20.0.*",
 ]
 classifiers=[
     "Programming Language :: Python",
     "Framework :: Odoo",
-    "Framework :: Odoo :: 19.0",
+    "Framework :: Odoo :: 20.0",
 ]

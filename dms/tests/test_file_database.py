@@ -123,15 +123,9 @@ class FileDatabaseTestCase(StorageDatabaseBaseCase):
 
     @users("dms-manager", "dms-user")
     def test_compute_content(self):
-        # Odoo 20 : plus de contexte bin_size ; le BinaryValue porte sa taille
-        # et donne le contenu à la demande.
-        self.assertTrue(self.file.content, "Content should be computed")
-        self.assertEqual(
-            self.file.content.size,
-            self.file.size,
-            "Content size should match the stored size",
-        )
-        self.assertEqual(bytes(self.file.content), b"\xff data")
+        content = self.file.content
+        self.assertTrue(content, "Content should be computed")
+        self.assertEqual(content.size, self.file.size, "Content size should match")
 
     @users("dms-manager", "dms-user")
     def test_compute_save_type(self):

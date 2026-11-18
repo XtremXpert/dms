@@ -6,13 +6,10 @@
 
 from logging import getLogger
 
-from odoo import SUPERUSER_ID, api, fields, models
+from odoo import api, fields, models
 from odoo.exceptions import AccessError
 from odoo.fields import Domain
 from odoo.tools import SQL
-from odoo.tools.safe_eval import safe_eval
-
-from odoo.addons.base.models.ir_access import IN_SELECTION
 
 _logger = getLogger(__name__)
 
@@ -35,25 +32,35 @@ class DmsSecurityMixin(models.AbstractModel):
         compute="_compute_record_ref",
         selection=lambda self: self._get_ref_selection(),
     )
+    # These fields are used in ir.access domains. The ORM evaluates those domains
+    # in sudo, so the values must not depend on `su` but only on the acting user.
     permission_read = fields.Boolean(
         compute="_compute_permissions",
         search="_search_permission_read",
         string="Read Access",
+        compute_sudo=True,
+        depends_context=("uid",),
     )
     permission_create = fields.Boolean(
         compute="_compute_permissions",
         search="_search_permission_create",
         string="Create Access",
+        compute_sudo=True,
+        depends_context=("uid",),
     )
     permission_write = fields.Boolean(
         compute="_compute_permissions",
         search="_search_permission_write",
         string="Write Access",
+        compute_sudo=True,
+        depends_context=("uid",),
     )
     permission_unlink = fields.Boolean(
         compute="_compute_permissions",
         search="_search_permission_unlink",
         string="Delete Access",
+        compute_sudo=True,
+        depends_context=("uid",),
     )
 
     @api.model
@@ -71,41 +78,55 @@ class DmsSecurityMixin(models.AbstractModel):
                 record.record_ref = f"{record.res_model},{record.res_id}"
 
     def _compute_permissions(self):
-        """
-        Get permissions for the current record.
-        """
+        """Get the permissions of the acting user on each record.
 
-        # Update according to presence when applying ir.rule. Seuls les
-        # enregistrements en base : invalider un enregistrement en cours
-        # d'édition (onchange, NewId) effacerait ses valeurs (ex. parent_id
-        # par défaut d'un nouveau répertoire).
-        self.browse(
-            [id_ for id_ in self._ids if isinstance(id_, int)]
-        ).invalidate_recordset()
-        if self.env.su:
-            self.update(
-                {
-                    "permission_create": True,
-                    "permission_read": True,
-                    "permission_unlink": True,
-                    "permission_write": True,
-                }
-            )
+        This runs in sudo (``compute_sudo``) because the ORM reads these fields
+        in sudo when it evaluates the ir.access domains. The access domain is
+        therefore built for the acting user (``sudo(False)``) and searched in sudo.
+        """
+        operations = ("create", "read", "unlink", "write")
+        user_self = self.sudo(False)
+        if user_self.env.su:
+            for operation in operations:
+                self[f"permission_{operation}"] = True
             return
+        origins = self._origin
+        for operation in operations:
+            domain = user_self._access_domain(operation)
+            if domain.is_false() or not origins:
+                allowed_ids = set()
+            elif domain.is_true():
+                allowed_ids = set(origins._ids)
+            else:
+                allowed_ids = set(
+                    origins.sudo()
+                    .with_context(active_test=False)
+                    .search(Domain("id", "in", origins.ids) & domain)
+                    ._ids
+                )
+            for record in self:
+                origin_id = record._origin.id
+                # Records not saved yet are not restricted
+                record[f"permission_{operation}"] = (
+                    not origin_id or origin_id in allowed_ids
+                )
 
-        creatable = self._filtered_access("create")
-        readable = self._filtered_access("read")
-        unlinkable = self._filtered_access("unlink")
-        writeable = self._filtered_access("write")
-        for one in self:
-            one.update(
-                {
-                    "permission_create": bool(one & creatable),
-                    "permission_read": bool(one & readable),
-                    "permission_unlink": bool(one & unlinkable),
-                    "permission_write": bool(one & writeable),
-                }
-            )
+    @api.model
+    def _invalidate_dms_permissions(self):
+        """Drop the cached permissions of DMS records.
+
+        Permissions depend on DMS access groups, directory hierarchy, storages
+        and related records, which are not field dependencies.
+        """
+        fnames = [
+            "permission_create",
+            "permission_read",
+            "permission_unlink",
+            "permission_write",
+        ]
+        for model_name in ("dms.directory", "dms.file"):
+            # This also invalidates the read access cache of the model
+            self.env[model_name].invalidate_model(fnames)
 
     @api.model
     def _get_domain_by_inheritance(self, operation):
@@ -181,17 +202,11 @@ class DmsSecurityMixin(models.AbstractModel):
             WHERE
                 users.uid = %s {operation_check}
             )"""
-        # Ces relations sont des champs calculés stockés : sans to_flush, une
-        # modification de la même transaction (groupe créé, utilisateur ajouté
-        # ou retiré, droit changé) serait ignorée par la requête.
-        group_fields = self.env["dms.access.group"]._fields
-        to_flush = [
-            self.env["dms.directory"]._fields["complete_group_ids"],
-            group_fields["users"],
-        ]
-        if operation != "read":
-            to_flush.append(group_fields[f"perm_inclusive_{operation}"])
-        return SQL(select, self.env.uid, to_flush=to_flush)
+        sql = SQL(
+            select,
+            self.env.uid,
+        )
+        return sql
 
     @api.model
     def _get_domain_by_access_groups(self, operation):
@@ -216,7 +231,7 @@ class DmsSecurityMixin(models.AbstractModel):
         # The domain optimizer normalizes any value searched on these Boolean
         # fields to [True], flipping the operator when needed, so the operator
         # alone carries the polarity and `value` never reaches this method
-        # unnormalized. ir.rule domains are evaluated with su while env.uid
+        # unnormalized. ir.access domains are evaluated with su while env.uid
         # stays the acting user; sudo(False) recovers that user, except for
         # the real superuser, whose environment keeps su set.
         _self = self.sudo(False) if self.env.su else self
@@ -256,67 +271,24 @@ class DmsSecurityMixin(models.AbstractModel):
             return True
         return super()._can_return_content(field_name, access_token)
 
-    def filtered_domain(self, domain):
-        """Odoo 20 : has_access / check_access / _filtered_access évaluent le
-        domaine d'accès avec ``origin.sudo().filtered_domain(domain)``. En sudo,
-        les champs calculés permission_* vaudraient pour le superutilisateur et
-        tout serait accessible ; on évalue donc ces domaines en SQL : les méthodes
-        _search_permission_* retrouvent l'utilisateur réel (``sudo(False)``).
-        Le vrai superutilisateur garde l'accès à tout.
-        """
-        if self.env.su:
-            if self.env.uid == SUPERUSER_ID:
-                return self
-            domain = Domain(domain)
-            if (
-                self
-                and all(isinstance(id_, int) for id_ in self._ids)
-                and any(
-                    cond.field_expr.startswith("permission_")
-                    for cond in domain.iter_conditions()
-                )
-            ):
-                found = self.with_context(active_test=False).search(
-                    Domain("id", "in", self.ids) & domain
-                )
-                return self.filtered(lambda rec: rec.id in found._ids)
-        return super().filtered_domain(domain)
-
-    def _check_access_dms_record(self, operation: str) -> tuple | None:
-        """Specific method "similar" to _check_access() but with a different
-        behavior: check if you do not really have access to any of the records
-        in to avoid performing the corresponding create/write/unlink action."""
-        if any(self._ids) and not self.env.su:
-            domain = self._dms_restriction_domain(operation)
-            items = self.with_context(active_test=False).search(domain)
-            if any(x_id not in items.ids for x_id in self.ids):
-                raise self.env["ir.access"]._make_record_access_error(
-                    self - items, operation
-                )
-
-    def _dms_restriction_domain(self, operation: str) -> Domain:
-        """Odoo 20 : équivalent de ``ir.rule._compute_domain`` en 19.0.
-
-        Seules les restrictions (ir.access sans groupe : multi-société, droits
-        calculés permission_*, verrou) comptent ici, comme les anciennes règles
-        globales ; les permissions (ex-ACL) sont volontairement ignorées, car la
-        création se fait en sudo et un groupe d'accès DMS peut ouvrir des droits
-        à un utilisateur qui n'a pas de groupe DMS.
-        """
-        IrAccess = self.env["ir.access"]
-        operations = IN_SELECTION[operation]
-        eval_context = None
-        domains = []
-        for access in IrAccess._get_all_access().get(self._name, ()):
-            if access.group_id or access.operation not in operations:
-                continue
-            domain = access.domain
-            if not isinstance(domain, Domain):
-                if eval_context is None:
-                    eval_context = IrAccess._eval_context()
-                domain = Domain(safe_eval(domain, eval_context))
-            domains.append(domain)
-        return Domain.AND(domains)
+    def _check_access_dms_record(self, operation: str) -> None:
+        """Raise an AccessError if the acting user can't perform ``operation``
+        on all the records, according to the ir.access permissions and
+        restrictions (DMS computed permissions included)."""
+        if not any(self._ids) or self.env.su:
+            return
+        domain = self._access_domain(operation)
+        allowed = self.browse()
+        if not domain.is_false():
+            allowed = (
+                self.sudo()
+                .with_context(active_test=False)
+                .search(Domain("id", "in", self.ids) & domain)
+                .with_env(self.env)
+            )
+        forbidden = self - allowed
+        if forbidden:
+            raise forbidden._make_access_error_message(operation, domain)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -326,15 +298,22 @@ class DmsSecurityMixin(models.AbstractModel):
         # Need to flush now, so all groups are stored in DB and the SELECT used
         # to check access works
         res.flush_recordset()
+        self._invalidate_dms_permissions()
         # Go back to the original sudo state and check we really had creation permission
         res = res.sudo(self.env.su)
         res._check_access_dms_record("create")
         return res
 
     def write(self, vals):
+        # The standard check_access() is also done by the ORM, but it relies on
+        # cached permissions that we want fresh here.
         self._check_access_dms_record("write")
-        return super().write(vals)
+        res = super().write(vals)
+        self._invalidate_dms_permissions()
+        return res
 
     def unlink(self):
         self._check_access_dms_record("unlink")
-        return super().unlink()
+        res = super().unlink()
+        self._invalidate_dms_permissions()
+        return res

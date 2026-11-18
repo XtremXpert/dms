@@ -13,14 +13,12 @@ class DmsFieldTemplate(models.Model):
     name = fields.Char(required=True)
     company_id = fields.Many2one(
         comodel_name="res.company",
-        string="Company",
         store=True,
         index=True,
     )
     storage_id = fields.Many2one(
         comodel_name="dms.storage",
         domain=[("save_type", "!=", "attachment")],
-        string="Storage",
     )
     parent_directory_id = fields.Many2one(
         comodel_name="dms.directory",
@@ -29,7 +27,6 @@ class DmsFieldTemplate(models.Model):
     )
     model_id = fields.Many2one(
         comodel_name="ir.model",
-        string="Model",
         domain=[("transient", "=", False), ("model", "!=", "dms.field.template")],
         index=True,
     )
@@ -60,66 +57,6 @@ class DmsFieldTemplate(models.Model):
     def _get_template_from_model(self, model):
         return self.search([("model", "=", model)], limit=1)
 
-    def _get_root_directory_name(self):
-        """Name of the directory that gathers the directories of the model."""
-        self.ensure_one()
-        return self.model_id.name or self.name
-
-    def _get_root_directory(self):
-        """Directory in which the directories of the records are created.
-
-        By order of precedence:
-
-        * the ``parent_directory_id`` explicitly configured on the template;
-        * otherwise a root directory of the storage named after the model
-          (created on first use), so that the directories of the records do
-          not pile up at the root of the storage;
-        * an empty recordset when no such directory can be used: a storage
-          restricted to some models (``model_ids``) does not accept root
-          directories not linked to a record.
-        """
-        self.ensure_one()
-        if self.parent_directory_id:
-            return self.parent_directory_id
-        empty_directory = self.env["dms.directory"]
-        if not self.storage_id or not self.model_id:
-            return empty_directory
-        if self.storage_id.model_ids:
-            return empty_directory
-        # sudo(): the directory that gathers the records of a model is shared
-        # configuration, whatever the access groups of the user creating it.
-        directory_model = self.env["dms.directory"].sudo()
-        candidates = directory_model.search(
-            [
-                ("storage_id", "=", self.storage_id.id),
-                ("parent_id", "=", False),
-                ("is_root_directory", "=", True),
-                ("name", "=", self._get_root_directory_name()),
-            ]
-        )
-        # A template directory (created in install mode) may already hold that
-        # name: it is a suitable root, and ``_create_child_directories`` keeps
-        # its record children out of the copies.
-        directory = candidates.filtered(lambda d: not d.res_model)[:1]
-        if not directory:
-            directory = candidates.filtered(
-                lambda d: d.res_model == "dms.field.template"
-            )[:1]
-        if directory:
-            return directory
-        if candidates:
-            # The name is already used by a directory of a record: keep the
-            # previous behaviour rather than nesting records in it.
-            return empty_directory
-        return directory_model.create(
-            {
-                "name": self._get_root_directory_name(),
-                "storage_id": self.storage_id.id,
-                "is_root_directory": True,
-                "group_ids": [(6, 0, self.group_ids.ids)],
-            }
-        )
-
     @api.model_create_multi
     def create(self, vals_list):
         """Create dms directory automatically in the creation in install mode."""
@@ -139,30 +76,24 @@ class DmsFieldTemplate(models.Model):
         record = self.env[res_model].browse(res_id)
         directory_model = self.env["dms.directory"].sudo()
         if res_model == "dms.field.template":
-            root_directory = record._get_root_directory()
-            vals = {
-                "storage_id": record.storage_id.id,
-                "res_id": record.id,
-                "res_model": record._name,
-                "name": record.display_name,
-                "group_ids": record.group_ids.ids,
-            }
-            if root_directory:
-                vals.update(
-                    {"parent_id": root_directory.id, "inherit_group_ids": False}
-                )
-            else:
-                vals.update({"is_root_directory": True})
-            return directory_model.create(vals)
+            return directory_model.create(
+                {
+                    "storage_id": record.storage_id.id,
+                    "res_id": record.id,
+                    "res_model": record._name,
+                    "is_root_directory": True,
+                    "name": record.display_name,
+                    "group_ids": record.group_ids.ids,
+                }
+            )
         template = self._get_template_from_model(res_model).sudo()
         if not template:
             raise ValidationError(
                 self.env._("There is no template linked to this model")
             )
-        root_directory = template._get_root_directory()
         total_directories = directory_model.search_count(
             [
-                ("parent_id", "=", root_directory.id),
+                ("parent_id", "=", self.parent_directory_id.id),
                 ("res_model", "=", res_model),
                 ("res_id", "=", res_id),
                 ("storage_id", "=", template.storage_id.id),
@@ -245,12 +176,7 @@ class DmsFieldTemplate(models.Model):
     def _create_child_directories(self, parent, directory):
         # Create child directories (all leves) + files
         directory_model = self.env["dms.directory"].sudo()
-        # Directories linked to a record are not part of the template
-        # structure: the template root directory may also hold the directories
-        # of the records, they must not be copied in every new record.
-        for child_directory in directory.child_directory_ids.filtered(
-            lambda child: not child.res_model
-        ):
+        for child_directory in directory.child_directory_ids:
             child = directory_model.create(
                 self._prepare_child_directory_vals(parent, child_directory)
             )
@@ -259,7 +185,7 @@ class DmsFieldTemplate(models.Model):
 
     def _prepare_directory_vals(self, directory, record):
         # Groups of the new directory will be those of the template + auto-generate
-        groups = directory.group_ids or self.group_ids
+        groups = directory.group_ids
         groups += self._get_autogenerated_group(record)
         directory_name = self.env["mail.render.mixin"]._render_template(
             self.directory_format_name,
@@ -267,18 +193,19 @@ class DmsFieldTemplate(models.Model):
             record.ids,
             engine="inline_template",
         )[record.id]
-        root_directory = self._get_root_directory()
         vals = {
-            "storage_id": (directory.storage_id or self.storage_id).id,
+            "storage_id": directory.storage_id.id,
             "res_id": record.id,
             "res_model": record._name,
             "name": directory_name,
             "group_ids": [(4, group.id) for group in groups],
         }
-        if root_directory:
-            vals.update({"parent_id": root_directory.id, "inherit_group_ids": False})
-        else:
+        if not self.parent_directory_id:
             vals.update({"is_root_directory": True})
+        else:
+            vals.update(
+                {"parent_id": self.parent_directory_id.id, "inherit_group_ids": False}
+            )
         return vals
 
     @api.constrains("model_id")

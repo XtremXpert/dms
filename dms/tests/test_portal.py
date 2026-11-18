@@ -93,7 +93,7 @@ class TestDmsPortal(odoo.tests.HttpCase, StorageAttachmentBaseCase):
                 self.start_tour("/my/dms", tour, login="portal")
 
     @users("portal")
-    @mute_logger("odoo.addons.base.models.ir_rule")
+    @mute_logger("odoo.addons.base.models.ir_access")
     def test_permission_portal_user_access_own_attachment(self):
         """
         The user can access its own attachments, even if its access group are not set
@@ -117,7 +117,7 @@ class TestDmsPortal(odoo.tests.HttpCase, StorageAttachmentBaseCase):
             directory.check_access("create")
 
     @users("portal")
-    @mute_logger("odoo.addons.base.models.ir_rule")
+    @mute_logger("odoo.addons.base.models.ir_access")
     def test_permission_portal_user_access_other_attachment(self):
         """
         The user can't access other attachments if its access group are not set
@@ -137,7 +137,7 @@ class TestDmsPortal(odoo.tests.HttpCase, StorageAttachmentBaseCase):
             file.check_access("unlink")
 
     @users("portal")
-    @mute_logger("odoo.addons.base.models.ir_rule")
+    @mute_logger("odoo.addons.base.models.ir_access")
     def test_binary_access_token(self):
         """Binary streaming (``/web/image``) honors DMS access tokens.
 

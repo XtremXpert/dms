@@ -14,7 +14,8 @@ from typing import Literal  # noqa # pylint: disable=unused-import
 from odoo import api, fields, models, tools
 from odoo.exceptions import UserError, ValidationError
 from odoo.fields import Domain
-from odoo.tools import BinaryBytes, consteq, human_size
+from odoo.tools import consteq, human_size
+from odoo.tools.binary import BinaryBytes
 
 from ..tools.file import check_name, unique_name
 
@@ -26,7 +27,7 @@ class DmsDirectory(models.Model):
     _name = "dms.directory"
     _description = "Directory"
 
-    _inherit = [
+    _inherit = [  # noqa: RUF012
         "portal.mixin",
         "dms.security.mixin",
         "dms.mixins.thumbnail",
@@ -57,7 +58,6 @@ class DmsDirectory(models.Model):
         compute_sudo=True,
         readonly=False,
         comodel_name="dms.storage",
-        string="Storage",
         ondelete="restrict",
         bypass_search_access=True,
         store=True,
@@ -79,7 +79,7 @@ class DmsDirectory(models.Model):
     )
 
     root_directory_id = fields.Many2one(
-        "dms.directory", "Root Directory", compute="_compute_root_id", store=True
+        "dms.directory", compute="_compute_root_id", store=True
     )
 
     def _default_parent_id(self):
@@ -303,7 +303,6 @@ class DmsDirectory(models.Model):
         domain="[('id', 'in', allowed_model_ids)]",
         compute="_compute_model_id",
         inverse="_inverse_model_id",
-        string="Model",
         store=True,
     )
     storage_id_save_type = fields.Selection(
@@ -487,9 +486,8 @@ class DmsDirectory(models.Model):
         for record in self:
             if record.is_root_directory:
                 record.parent_id = None
-            else:
-                # HACK: Not needed in v14 due to odoo/odoo#64359
-                record.parent_id = record.parent_id
+            elif not record.parent_id:
+                record.parent_id = record.default_get(["parent_id"])["parent_id"]
 
     @api.depends("is_root_directory", "parent_id")
     def _compute_root_id(self):
@@ -658,7 +656,7 @@ class DmsDirectory(models.Model):
             }
             if isinstance(contents_raw := attachment.content, str):
                 contents_raw = contents_raw.encode()
-            vals["content"] = BinaryBytes(contents_raw)
+            vals["content"] = BinaryBytes(contents_raw, filename=uname)
             self.env["dms.file"].sudo().create(vals)
             names.append(uname)
 
@@ -677,7 +675,7 @@ class DmsDirectory(models.Model):
         return res
 
     def write(self, vals):
-        if any(k in vals.keys() for k in ["storage_id", "parent_id"]):
+        if any(k in vals for k in ["storage_id", "parent_id"]):
             for item in self:
                 new_storage_id = vals.get("storage_id", item.storage_id.id)
                 new_parent_id = vals.get("parent_id", item.parent_id.id)
@@ -764,7 +762,6 @@ class DmsDirectory(models.Model):
         action["domain"] = domain
         action["context"] = dict(
             self.env.context,
-            default_parent_id=self.id,
             searchpanel_default_parent_id=self.id,
         )
         return action

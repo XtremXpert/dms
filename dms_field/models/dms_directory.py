@@ -118,18 +118,17 @@ class DmsDirectory(models.Model):
     def _search_parents(
         self, domain=False, offset=0, limit=None, order=None, count=False
     ):
-        """Odoo 20 : _where_calc / _apply_ir_rules n'existent plus ; un dossier
-        est « de premier niveau » s'il n'a pas de parent ou si son parent ne
-        fait pas partie des dossiers trouvés (droits compris, via _search)."""
+        """Search the records matching ``domain`` whose parent does not match it
+        (or is not readable), i.e. the top level elements of the hierarchy."""
         self._check_parent_field()
-        self.check_access("read")
         domain = Domain(domain or [])
         if domain.is_false():
             return 0 if count else []
-        parent = self._parent_name
-        domain &= Domain(parent, "=", False) | Domain(
-            parent, "not in", self._search(domain)
+        parent_name = self._parent_name
+        parents_domain = domain & (
+            Domain(parent_name, "=", False)
+            | Domain(parent_name, "not in", self._search(domain))
         )
         if count:
-            return self.search_count(domain)
-        return self.search(domain, offset=offset, limit=limit, order=order).ids
+            return self.search_count(parents_domain)
+        return self.search(parents_domain, offset=offset, limit=limit, order=order).ids

@@ -63,7 +63,6 @@ class DmsAccessGroups(models.Model):
     count_directories = fields.Integer(compute="_compute_count_directories")
     parent_group_id = fields.Many2one(
         comodel_name="dms.access.group",
-        string="Parent Group",
         ondelete="cascade",
         index="btree",
     )
@@ -147,18 +146,36 @@ class DmsAccessGroups(models.Model):
         "parent_group_id.users",
         "parent_group_id.users.active",
         "group_ids",
-        "group_ids.user_ids",
-        "group_ids.user_ids.active",
+        "group_ids.all_user_ids",
+        "group_ids.all_user_ids.active",
         "explicit_user_ids",
     )
     def _compute_users(self):
         for record in self:
             users = (
-                record.group_ids.user_ids
+                record.group_ids.all_user_ids
                 | record.explicit_user_ids
                 | record.parent_group_id.users
             )
             record.update({"users": users, "count_users": len(users)})
+        # Users may have gained or lost access to DMS records
+        self.env["dms.security.mixin"]._invalidate_dms_permissions()
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        res = super().create(vals_list)
+        self.env["dms.security.mixin"]._invalidate_dms_permissions()
+        return res
+
+    def write(self, vals):
+        res = super().write(vals)
+        self.env["dms.security.mixin"]._invalidate_dms_permissions()
+        return res
+
+    def unlink(self):
+        res = super().unlink()
+        self.env["dms.security.mixin"]._invalidate_dms_permissions()
+        return res
 
     def copy_data(self, default=None):
         vals_list = super().copy_data(default)

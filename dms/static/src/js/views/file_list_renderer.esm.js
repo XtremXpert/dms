@@ -6,11 +6,5 @@
 import {ListRenderer} from "@web/views/list/list_renderer";
 
 export class FileListRenderer extends ListRenderer {
-    setup() {
-        super.setup();
-    }
+    static template = "dms.ListRenderer";
 }
-
-FileListRenderer.components = {
-    ...FileListRenderer.components,
-};

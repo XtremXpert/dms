@@ -77,7 +77,8 @@ class BenchmarkTestCase(common.TransactionCase):
         tfunc = track_function(return_tracking=True)(func)
         benchmark = []
         for item in args_list:
-            self.registry.clear_all_caches()
+            self.env.transaction.invalidate_ormcache()
+            self.env.invalidate_all()
             args = item[0] if len(item) > 0 else []
             kwargs = item[1] if len(item) > 1 else {}
             tracking = tuple(tfunc(*args, **kwargs)[1][1:])

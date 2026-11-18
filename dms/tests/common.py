@@ -24,8 +24,6 @@ def read_test_asset(filename):
     """
     path = os.path.join(os.path.dirname(__file__), os.pardir, "test", filename)
     with open(path, "rb") as fh:
-        # Odoo 20 : un champ Binary reçoit le base64 sous forme de str (comme le
-        # client web) ; des octets seraient refusés.
         return base64.b64encode(fh.read()).decode()
 
 
@@ -92,11 +90,8 @@ def track_function(
 
 
 class DocumentsBaseCase(BaseCommon):
-    # Odoo 20 : BaseCommon rebascule chaque test sur un utilisateur de test.
-    # Ces tests vérifient eux-mêmes les droits (with_user / users=…) et
-    # préparent leurs données en superutilisateur, comme en 19.0 : garder le
-    # superutilisateur (même mécanisme que les « FIXME » du cœur).
-    _test_user_groups = None
+    # Keep running the tests as superuser, tests switch users explicitly
+    _test_user_groups = ()
 
     @classmethod
     def setUpClass(cls):
@@ -174,8 +169,7 @@ class DocumentsBaseCase(BaseCommon):
                 "name": name,
                 "res_model": res_model,
                 "res_id": res_id,
-                # Odoo 20 : datas n'existe plus, raw prend les octets
-                "raw": base64.b64decode(content or cls.content_base64()),
+                "raw": content or cls.content_base64(),
             }
         )
 

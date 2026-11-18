@@ -6,8 +6,4 @@
 
 import {ListController} from "@web/views/list/list_controller";
 
-export class FileListController extends ListController {
-    setup() {
-        super.setup(...arguments);
-    }
-}
+export class FileListController extends ListController {}

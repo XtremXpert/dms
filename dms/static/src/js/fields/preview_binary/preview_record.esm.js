@@ -9,6 +9,8 @@ import {useFileViewer} from "@web/core/file_viewer/file_viewer_hook";
 import {useService} from "@web/core/utils/hooks";
 
 export class PreviewRecordField extends BinaryField {
+    static template = "dms.FilePreviewField";
+
     setup() {
         super.setup();
         this.store = useService("mail.store");
@@ -27,9 +29,6 @@ export class PreviewRecordField extends BinaryField {
         this.fileViewer.open(attachment);
     }
 }
-
-// Odoo 20 / OWL 3 : les props sont celles de BinaryField (useProps)
-PreviewRecordField.template = "dms.FilePreviewField";
 
 const previewRecordField = {
     component: PreviewRecordField,

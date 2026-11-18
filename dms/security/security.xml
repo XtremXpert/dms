@@ -30,5 +30,4 @@
             eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"
         />
     </record>
-    <!-- Odoo 20 : ir.model.access + ir.rule -> ir.access (security/ir.access.csv) -->
 </odoo>

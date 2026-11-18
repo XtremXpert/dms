@@ -30,7 +30,6 @@ class Storage(models.Model):
     )
     company_id = fields.Many2one(
         comodel_name="res.company",
-        string="Company",
         default=lambda self: self.env.company,
         help="If set, directories and files will only be available for "
         "the selected company.",
@@ -43,6 +42,7 @@ class Storage(models.Model):
     root_directory_ids = fields.One2many(
         comodel_name="dms.directory",
         inverse_name="storage_id",
+        domain=[("is_root_directory", "=", True)],
         string="Root Directories",
         bypass_search_access=False,
         readonly=False,
