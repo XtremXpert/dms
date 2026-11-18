@@ -133,9 +133,17 @@ class TestDmsField(DmsFieldTestMixin, BaseCommon):
         self.assertEqual(self.partner.dms_directory_ids.name, self.partner.display_name)
         child_names = self.partner.dms_directory_ids.mapped("child_directory_ids.name")
         directory_0 = self.partner.dms_directory_ids[0]
-        self.assertFalse(directory_0.parent_id)
-        self.assertTrue(directory_0.is_root_directory)
-        self.assertTrue(directory_0.inherit_group_ids)
+        if hasattr(self.template, "_get_root_directory"):
+            # dms_field_model_directory installed: the directory of a record is
+            # created under the directory that gathers the records of its model
+            self.assertEqual(
+                directory_0.parent_id, self.template._get_root_directory()
+            )
+            self.assertFalse(directory_0.is_root_directory)
+        else:
+            self.assertFalse(directory_0.parent_id)
+            self.assertTrue(directory_0.is_root_directory)
+            self.assertTrue(directory_0.inherit_group_ids)
         self.assertIn(self.template.group_ids, directory_0.group_ids)
         self.assertIn(self.group, directory_0.group_ids.group_ids)
         self.assertIn(self.partner, directory_0.mapped("group_ids.dms_field_ref"))
