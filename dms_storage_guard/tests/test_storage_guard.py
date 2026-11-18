@@ -102,7 +102,9 @@ class TestStorageGuard(TransactionCase):
         message = str(error.exception)
         self.assertIn("Guard blocking storage", message)
         self.assertIn("Migrate", message)
-        report = json.loads(self.parameters.get_str(REPORT_PARAM))
+        # The report persisted by the hook is not visible from this
+        # transaction once the hook has raised: assert on the diagnosis itself.
+        report = collect_report(self.env)
         self.assertTrue(report["problems"])
 
     def test_pre_init_hook_allows_explicit_override(self):

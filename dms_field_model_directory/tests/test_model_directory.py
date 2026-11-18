@@ -17,11 +17,9 @@ class TestModelDirectory(DmsFieldTestMixin, BaseCommon):
         cls.directory = cls.template.dms_directory_ids
 
     def _create_partner(self, name):
-        return (
-            self.env["res.partner"]
-            .with_context(skip_track_dms_field_template=True)
-            .create({"name": name})
-        )
+        partner = self.env["res.partner"].create({"name": name})
+        partner.invalidate_recordset(["dms_directory_ids"])
+        return partner
 
     def test_template_directory_is_not_a_root(self):
         self.assertEqual(
@@ -90,19 +88,28 @@ class TestModelDirectory(DmsFieldTestMixin, BaseCommon):
         self.assertEqual(directory.storage_id, storage)
 
     def test_child_directories_ignore_record_directories(self):
+        holder = (
+            self.env["res.partner"]
+            .with_context(skip_track_dms_field_template=True)
+            .create({"name": "Holder"})
+        )
         record_directory = self.env["dms.directory"].create(
             {
                 "name": "A record directory",
                 "parent_id": self.directory.id,
                 "storage_id": self.storage.id,
                 "res_model": "res.partner",
-                "res_id": self._create_partner("Holder").id,
+                "res_id": holder.id,
             }
         )
-        self._create_partner("Copied structure")
-        self.assertNotIn(
-            record_directory,
-            self.env["dms.directory"].search(
-                [("name", "=", record_directory.name), ("res_model", "=", False)]
-            ),
+        self.env["dms.directory"].create(
+            {
+                "name": "Template child",
+                "parent_id": self.directory.id,
+                "storage_id": self.storage.id,
+            }
         )
+        partner = self._create_partner("Copied structure")
+        child_names = partner.dms_directory_ids.child_directory_ids.mapped("name")
+        self.assertIn("Template child", child_names)
+        self.assertNotIn(record_directory.name, child_names)

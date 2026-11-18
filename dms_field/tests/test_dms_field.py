@@ -197,9 +197,17 @@ class TestDmsField(DmsFieldTestMixin, BaseCommon):
         partner_1 = self.env["res.partner"].create({"name": "Test partner 1"})
         partner_1.invalidate_model()
         directory_1 = partner_1.dms_directory_ids[0]
-        self.assertFalse(directory_1.parent_id)
-        self.assertTrue(directory_1.is_root_directory)
-        self.assertTrue(directory_1.inherit_group_ids)
+        if hasattr(self.template, "_get_root_directory"):
+            # dms_field_model_directory installed: the directory of a record is
+            # created under the directory that gathers the records of its model
+            self.assertEqual(
+                directory_1.parent_id, self.template._get_root_directory()
+            )
+            self.assertFalse(directory_1.is_root_directory)
+        else:
+            self.assertFalse(directory_1.parent_id)
+            self.assertTrue(directory_1.is_root_directory)
+            self.assertTrue(directory_1.inherit_group_ids)
         partner_2 = (
             self.env["res.partner"]
             .with_context(skip_track_dms_field_template=True)
