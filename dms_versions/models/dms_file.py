@@ -5,8 +5,8 @@
 
 import logging
 
-from odoo import fields
-from odoo import models
+from odoo import fields, models
+from odoo.tools.binary import BinaryBytes
 
 _logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class DmsFile(models.Model):
                 "mimetype": dms_file.mimetype,
                 "checksum": dms_file.checksum,
                 "size": dms_file.size,
-                "content": bytes(old),
+                "content": BinaryBytes(bytes(old)),
                 "origin": "restore" if self.env.context.get("dms_version_restore")
                 else "update",
             })
