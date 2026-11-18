@@ -31,7 +31,7 @@ class DmsFileRequest(models.Model):
     requested_to_id = fields.Many2one(
         "res.users", string="Demandé à", required=True, tracking=True,
         default=lambda self: self.env.user,
-        domain=lambda self: [("groups_id", "in", self.env.ref("dms.group_dms_user").id)],
+        domain=lambda self: [("group_ids", "in", self.env.ref("dms.group_dms_user").id)],
     )
     requested_by_id = fields.Many2one(
         "res.users", string="Demandé par", readonly=True,
