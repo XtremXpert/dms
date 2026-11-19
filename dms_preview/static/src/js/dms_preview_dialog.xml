@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+    Copyright 2026 XtremXpert
+    License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
+-->
+<templates xml:space="preserve">
+    <t t-name="dms_preview.DmsFilePreviewDialog">
+        <Dialog
+            title="this.dialogTitle"
+            size="'xl'"
+            contentClass="'o_dms_preview_dialog'"
+            footer="false"
+        >
+            <div
+                t-if="this.state.loading and !this.data"
+                class="o_dms_preview_loading text-center py-5"
+            >
+                <i
+                    class="oi oi-spin"
+                    data-icon="autorenew"
+                    role="img"
+                    aria-label="Loading"
+                />
+            </div>
+            <div
+                t-elif="this.state.error"
+                class="alert alert-danger mb-0"
+                role="alert"
+                t-out="this.state.error"
+            />
+            <div t-elif="this.data" class="o_dms_preview">
+                <div
+                    class="o_dms_preview_toolbar d-flex flex-wrap align-items-center gap-2"
+                >
+                    <div class="btn-group" role="group">
+                        <button
+                            t-if="this.capabilities.can_download"
+                            class="btn btn-primary"
+                            type="button"
+                            t-on-click="this.onDownload"
+                        >
+                            <i class="oi oi-fw me-1" data-icon="download" />
+                            <span t-out="this.labels.download" />
+                        </button>
+                        <button
+                            t-if="this.capabilities.can_edit"
+                            class="btn btn-secondary"
+                            type="button"
+                            t-on-click="this.onEdit"
+                        >
+                            <i class="oi oi-fw me-1" data-icon="edit" />
+                            <span t-out="this.labels.edit" />
+                        </button>
+                        <button
+                            t-if="this.capabilities.can_print"
+                            class="btn btn-secondary"
+                            type="button"
+                            t-on-click="this.onPrint"
+                        >
+                            <i class="oi oi-fw me-1" data-icon="print" />
+                            <span t-out="this.labels.print" />
+                        </button>
+                        <button
+                            t-if="this.capabilities.can_share"
+                            class="btn btn-secondary"
+                            type="button"
+                            t-on-click="this.onShare"
+                        >
+                            <i class="oi oi-fw me-1" data-icon="share" />
+                            <span t-out="this.labels.share" />
+                        </button>
+                    </div>
+                    <div class="ms-auto">
+                        <Dropdown position="'bottom-end'">
+                            <button
+                                type="button"
+                                class="btn btn-secondary"
+                                t-att-title="this.labels.more"
+                                t-att-aria-label="this.labels.more"
+                            >
+                                <i class="oi oi-fw" data-icon="more_horiz" />
+                            </button>
+                            <t t-set-slot="content">
+                                <DropdownItem onSelected="() => this.onDetails()">
+                                    <i class="oi oi-fw me-1" data-icon="info" />
+                                    <span t-out="this.labels.details" />
+                                </DropdownItem>
+                                <DropdownItem
+                                    t-if="this.capabilities.can_move"
+                                    onSelected="() => this.onMove()"
+                                >
+                                    <i
+                                        class="oi oi-fw me-1"
+                                        data-icon="drive_file_move"
+                                    />
+                                    <span t-out="this.labels.move" />
+                                </DropdownItem>
+                                <DropdownItem
+                                    t-if="this.capabilities.can_lock"
+                                    onSelected="() => this.onToggleLock()"
+                                >
+                                    <i class="oi oi-fw me-1" data-icon="lock" />
+                                    <span t-out="this.labels.lock" />
+                                </DropdownItem>
+                                <DropdownItem
+                                    t-if="this.capabilities.can_unlock"
+                                    onSelected="() => this.onToggleLock()"
+                                >
+                                    <i class="oi oi-fw me-1" data-icon="lock_open" />
+                                    <span t-out="this.labels.unlock" />
+                                </DropdownItem>
+                                <DropdownItem
+                                    t-if="this.capabilities.can_archive"
+                                    onSelected="() => this.onArchive()"
+                                >
+                                    <i class="oi oi-fw me-1" data-icon="archive" />
+                                    <span t-out="this.labels.archive" />
+                                </DropdownItem>
+                                <DropdownItem
+                                    t-if="this.capabilities.can_unarchive"
+                                    onSelected="() => this.onArchive()"
+                                >
+                                    <i class="oi oi-fw me-1" data-icon="unarchive" />
+                                    <span t-out="this.labels.unarchive" />
+                                </DropdownItem>
+                                <DropdownItem
+                                    t-if="this.capabilities.can_delete"
+                                    onSelected="() => this.onDelete()"
+                                >
+                                    <i
+                                        class="oi oi-fw me-1 text-danger"
+                                        data-icon="delete"
+                                    />
+                                    <span
+                                        class="text-danger"
+                                        t-out="this.labels.delete"
+                                    />
+                                </DropdownItem>
+                            </t>
+                        </Dropdown>
+                    </div>
+                </div>
+                <div class="o_dms_preview_media">
+                    <div t-if="this.state.loading" class="o_dms_preview_spinner">
+                        <i
+                            class="oi oi-spin"
+                            data-icon="autorenew"
+                            role="img"
+                            aria-label="Loading"
+                        />
+                    </div>
+                    <t t-if="this.category === 'image'">
+                        <img
+                            class="o_dms_preview_image"
+                            t-att-src="this.data.urls.image"
+                            t-att-alt="this.data.name"
+                        />
+                    </t>
+                    <iframe
+                        t-elif="this.category === 'pdf'"
+                        class="o_dms_preview_frame"
+                        t-att-src="this.pdfViewerUrl"
+                        t-att-title="this.data.name"
+                        t-on-load="this.onPdfLoaded"
+                    />
+                    <iframe
+                        t-elif="this.category === 'text'"
+                        class="o_dms_preview_frame"
+                        t-att-src="this.data.urls.text"
+                        t-att-title="this.data.name"
+                        sandbox=""
+                    />
+                    <video
+                        t-elif="this.category === 'video'"
+                        class="o_dms_preview_video"
+                        controls="controls"
+                    >
+                        <source
+                            t-att-src="this.data.urls.content"
+                            t-att-type="this.data.mimetype"
+                        />
+                    </video>
+                    <audio
+                        t-elif="this.category === 'audio'"
+                        class="o_dms_preview_audio"
+                        controls="controls"
+                    >
+                        <source
+                            t-att-src="this.data.urls.content"
+                            t-att-type="this.data.mimetype"
+                        />
+                    </audio>
+                    <div t-else="" class="o_dms_preview_placeholder">
+                        <img
+                            class="o_dms_preview_placeholder_icon"
+                            t-att-src="this.data.icon_url"
+                            alt=""
+                        />
+                        <p class="text-muted mb-1" t-out="this.labels.no_preview" />
+                        <p
+                            class="text-muted small mb-3"
+                            t-out="this.labels.see_details"
+                        />
+                        <button
+                            t-if="this.onlyoffice.viewable"
+                            class="btn btn-primary"
+                            type="button"
+                            t-on-click="this.onOnlyofficePreview"
+                        >
+                            <i class="oi oi-fw me-1" data-icon="visibility" />
+                            <span t-out="this.labels.onlyoffice_preview" />
+                        </button>
+                    </div>
+                    <button
+                        t-if="this.canNavigate"
+                        class="o_dms_preview_nav o_dms_preview_nav_previous"
+                        type="button"
+                        t-att-title="this.labels.previous"
+                        t-att-aria-label="this.labels.previous"
+                        t-on-click.stop="this.onPrevious"
+                    >
+                        <i class="oi" data-icon="chevron_backward" />
+                    </button>
+                    <button
+                        t-if="this.canNavigate"
+                        class="o_dms_preview_nav o_dms_preview_nav_next"
+                        type="button"
+                        t-att-title="this.labels.next"
+                        t-att-aria-label="this.labels.next"
+                        t-on-click.stop="this.onNext"
+                    >
+                        <i class="oi" data-icon="chevron_forward" />
+                    </button>
+                </div>
+                <div
+                    class="o_dms_preview_meta d-flex flex-wrap align-items-center gap-2"
+                >
+                    <img
+                        class="o_dms_preview_meta_icon"
+                        t-att-src="this.data.icon_url"
+                        alt=""
+                    />
+                    <span class="text-muted" t-out="this.metaText" />
+                    <span t-if="this.data.is_locked" class="badge text-bg-warning">
+                        <i class="oi me-1" data-icon="lock" />
+                        <span
+                            t-if="this.data.locked_by_name"
+                            t-out="this.data.locked_by_name"
+                        />
+                        <span t-else="" t-out="this.labels.locked" />
+                    </span>
+                    <t t-foreach="this.tags" t-as="tag" t-key="tag.id">
+                        <span
+                            t-attf-class="o_tag o_tag_color_#{tag.color}"
+                            t-out="tag.name"
+                        />
+                    </t>
+                </div>
+            </div>
+        </Dialog>
+    </t>
+</templates>
