@@ -134,7 +134,27 @@ class TestDmsPreview(TransactionCase):
         self.assertIn(
             f"/dms/file/render_text/{self.text_file.id}", data["urls"]["text"]
         )
-        self.assertFalse(data["onlyoffice"])
+        if "oo_is_viewable" in self.env["dms.file"]._fields:
+            # onlyoffice_odoo_dms is installed: the dialog gets the editor URL.
+            self.assertEqual(
+                data["onlyoffice"]["url"],
+                f"/onlyoffice/dms/editor/{self.text_file.id}",
+            )
+        else:
+            self.assertFalse(data["onlyoffice"])
+        if "version_count" in self.env["dms.file"]._fields:
+            # dms_versions (hermes) is installed: the version history is
+            # reported to the dialog, even when the file has none yet.
+            self.assertEqual(data["versions"], {"count": 0})
+        else:
+            self.assertFalse(data["versions"])
+
+    def test_share_link(self):
+        link = self.text_file.get_dms_preview_share_link()
+        self.assertIn("/mail/view?", link)
+        self.assertIn("model=dms.file", link)
+        self.assertIn(f"res_id={self.text_file.id}", link)
+        self.assertIn("access_token=", link)
 
     def test_capabilities_write_user(self):
         capabilities = self.text_file.get_dms_preview_data()["capabilities"]

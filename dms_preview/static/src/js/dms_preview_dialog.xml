@@ -7,7 +7,7 @@
     <t t-name="dms_preview.DmsFilePreviewDialog">
         <Dialog
             title="this.dialogTitle"
-            size="'xl'"
+            size="this.dialogSize"
             contentClass="'o_dms_preview_dialog'"
             footer="false"
         >
@@ -43,7 +43,16 @@
                             <span t-out="this.labels.download" />
                         </button>
                         <button
-                            t-if="this.capabilities.can_edit"
+                            t-if="this.isEditing"
+                            class="btn btn-success"
+                            type="button"
+                            t-on-click="this.onFinishEditing"
+                        >
+                            <i class="oi oi-fw me-1" data-icon="check" />
+                            <span t-out="this.labels.finish_editing" />
+                        </button>
+                        <button
+                            t-elif="this.capabilities.can_edit"
                             class="btn btn-secondary"
                             type="button"
                             t-on-click="this.onEdit"
@@ -70,7 +79,29 @@
                             <span t-out="this.labels.share" />
                         </button>
                     </div>
-                    <div class="ms-auto">
+                    <div class="ms-auto d-flex align-items-center gap-1">
+                        <button
+                            t-if="this.canOpenViewer"
+                            class="btn btn-secondary"
+                            type="button"
+                            t-att-title="this.labels.open_viewer"
+                            t-att-aria-label="this.labels.open_viewer"
+                            t-on-click="this.openViewer"
+                        >
+                            <i class="oi oi-fw" data-icon="open_in_full" />
+                        </button>
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            t-att-title="this.state.fullscreen ? this.labels.reduce : this.labels.expand"
+                            t-att-aria-label="this.state.fullscreen ? this.labels.reduce : this.labels.expand"
+                            t-on-click="this.onToggleFullscreen"
+                        >
+                            <i
+                                class="oi oi-fw"
+                                t-att-data-icon="this.state.fullscreen ? 'fullscreen_exit' : 'fullscreen'"
+                            />
+                        </button>
                         <Dropdown position="'bottom-end'">
                             <button
                                 type="button"
@@ -81,6 +112,17 @@
                                 <i class="oi oi-fw" data-icon="more_horiz" />
                             </button>
                             <t t-set-slot="content">
+                                <DropdownItem onSelected="() => this.onCopyLink()">
+                                    <i class="oi oi-fw me-1" data-icon="link" />
+                                    <span t-out="this.labels.copy_link" />
+                                </DropdownItem>
+                                <DropdownItem
+                                    t-if="this.versionCount"
+                                    onSelected="() => this.onVersions()"
+                                >
+                                    <i class="oi oi-fw me-1" data-icon="history" />
+                                    <span t-out="this.versionsLabel" />
+                                </DropdownItem>
                                 <DropdownItem onSelected="() => this.onDetails()">
                                     <i class="oi oi-fw me-1" data-icon="info" />
                                     <span t-out="this.labels.details" />
@@ -149,7 +191,25 @@
                             aria-label="Loading"
                         />
                     </div>
-                    <t t-if="this.category === 'image'">
+                    <div
+                        t-if="this.showOnlyoffice and !this.state.onlyofficeLoaded"
+                        class="o_dms_preview_spinner"
+                    >
+                        <i
+                            class="oi oi-spin"
+                            data-icon="autorenew"
+                            role="img"
+                            aria-label="Loading"
+                        />
+                    </div>
+                    <iframe
+                        t-if="this.showOnlyoffice"
+                        class="o_dms_preview_frame o_dms_preview_onlyoffice"
+                        t-att-src="this.onlyofficeUrl"
+                        t-att-title="this.data.name"
+                        t-on-load="this.onOnlyofficeLoaded"
+                    />
+                    <t t-elif="this.category === 'image'">
                         <img
                             class="o_dms_preview_image"
                             t-att-src="this.data.urls.image"
@@ -201,15 +261,6 @@
                             class="text-muted small mb-3"
                             t-out="this.labels.see_details"
                         />
-                        <button
-                            t-if="this.onlyoffice.viewable"
-                            class="btn btn-primary"
-                            type="button"
-                            t-on-click="this.onOnlyofficePreview"
-                        >
-                            <i class="oi oi-fw me-1" data-icon="visibility" />
-                            <span t-out="this.labels.onlyoffice_preview" />
-                        </button>
                     </div>
                     <button
                         t-if="this.canNavigate"

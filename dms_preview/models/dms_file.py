@@ -159,7 +159,19 @@ class DmsFile(models.Model):
         return {
             "viewable": bool(self.oo_is_viewable),
             "editable": bool(self.oo_is_editable),
+            "url": f"/onlyoffice/dms/editor/{self.id}",
         }
+
+    def _dms_preview_versions_info(self):
+        """Version history, when ``dms_versions`` (hermes) is installed.
+
+        Same soft integration as ONLYOFFICE: the module adds ``version_count``
+        to ``dms.file``, the field presence is the capability test.
+        """
+        self.ensure_one()
+        if "version_count" not in self._fields:
+            return False
+        return {"count": self.version_count}
 
     def _dms_preview_onlyoffice_action(self, mode):
         self.ensure_one()
@@ -254,8 +266,15 @@ class DmsFile(models.Model):
             ],
             "capabilities": capabilities,
             "onlyoffice": self._dms_preview_onlyoffice_info(),
+            "versions": self._dms_preview_versions_info(),
             "urls": self._dms_preview_urls(),
         }
+
+    def get_dms_preview_share_link(self):
+        """Portal link of the file, with its access token."""
+        self.ensure_one()
+        self.check_access("read")
+        return self.get_base_url() + self._get_share_url(redirect=True)
 
     # ----------------------------------------------------------
     # Actions

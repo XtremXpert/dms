@@ -42,6 +42,10 @@ shown inside the dialog (image, PDF, text, video or audio) next to the
 actions the file and the current user allow: download, edit, print,
 share, lock, archive, move or delete.
 
+When ``onlyoffice_odoo_dms`` is installed, office documents are
+previewed and edited in ONLYOFFICE without leaving the dialog, and the
+version history added by ``dms_versions`` is one click away.
+
 **Table of contents**
 
 .. contents::
@@ -54,15 +58,23 @@ Click a file in a directory (kanban card or list row): a dialog shows
 the content of the file and the actions available for its type.
 
 - **Download** is always available.
-- **Edit** opens the file in the ONLYOFFICE editor when
-  ``onlyoffice_odoo_dms`` is installed and the format is editable there.
-  Otherwise the file form opens, from which the content can be replaced.
+- **Edit** opens the file in the ONLYOFFICE editor *inside* the dialog
+  when ``onlyoffice_odoo_dms`` is installed and the format is editable
+  there; the button becomes *Finish editing* and the content is reloaded
+  when it is clicked. Otherwise the file form opens, from which the
+  content can be replaced.
+- Office documents are previewed in ONLYOFFICE inside the dialog too,
+  when the integration module is installed.
 - **Print** is offered for images, PDFs and text files.
 - **Share** opens the portal share wizard of the file.
-- The **More actions** menu holds Details, Move, Lock/Unlock,
+- The button with the arrows enlarges the dialog, the other one opens
+  the native Odoo viewer (zoom, rotation, print) for images, PDFs, text,
+  audio and video.
+- The **More actions** menu holds Copy the share link, Versions (when
+  ``dms_versions`` is installed), Details, Move, Lock/Unlock,
   Archive/Restore and Delete.
-- The arrows on the sides of the preview go to the previous or next file
-  of the current page.
+- The arrows on the sides of the preview, or the left and right keyboard
+  keys, go to the previous or next file of the current page.
 
 The form view remains reachable: *Details* in the dialog, *Open* in the
 card dropdown, or any view that references the regular DMS views
@@ -71,11 +83,10 @@ explicitly (for example the file selector wizard).
 Known issues / Roadmap
 ======================
 
-- Show office documents inside the dialog when ONLYOFFICE is installed,
-  instead of opening the editor as a separate action.
 - Navigate across all the files of a directory, not only the loaded
   page.
 - Print office documents, through a conversion step.
+- Compare two text versions in the dialog.
 
 Bug Tracker
 ===========

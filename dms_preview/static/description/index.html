@@ -383,6 +383,9 @@ and the actions they need depend on the type of the file.</p>
 shown inside the dialog (image, PDF, text, video or audio) next to the
 actions the file and the current user allow: download, edit, print,
 share, lock, archive, move or delete.</p>
+<p>When <tt class="docutils literal">onlyoffice_odoo_dms</tt> is installed, office documents are
+previewed and edited in ONLYOFFICE without leaving the dialog, and the
+version history added by <tt class="docutils literal">dms_versions</tt> is one click away.</p>
 <p><strong>Table of contents</strong></p>
 <div class="contents local topic" id="contents">
 <ul class="simple">
@@ -403,15 +406,23 @@ share, lock, archive, move or delete.</p>
 the content of the file and the actions available for its type.</p>
 <ul class="simple">
 <li><strong>Download</strong> is always available.</li>
-<li><strong>Edit</strong> opens the file in the ONLYOFFICE editor when
-<tt class="docutils literal">onlyoffice_odoo_dms</tt> is installed and the format is editable there.
-Otherwise the file form opens, from which the content can be replaced.</li>
+<li><strong>Edit</strong> opens the file in the ONLYOFFICE editor <em>inside</em> the dialog
+when <tt class="docutils literal">onlyoffice_odoo_dms</tt> is installed and the format is editable
+there; the button becomes <em>Finish editing</em> and the content is reloaded
+when it is clicked. Otherwise the file form opens, from which the
+content can be replaced.</li>
+<li>Office documents are previewed in ONLYOFFICE inside the dialog too,
+when the integration module is installed.</li>
 <li><strong>Print</strong> is offered for images, PDFs and text files.</li>
 <li><strong>Share</strong> opens the portal share wizard of the file.</li>
-<li>The <strong>More actions</strong> menu holds Details, Move, Lock/Unlock,
+<li>The button with the arrows enlarges the dialog, the other one opens
+the native Odoo viewer (zoom, rotation, print) for images, PDFs, text,
+audio and video.</li>
+<li>The <strong>More actions</strong> menu holds Copy the share link, Versions (when
+<tt class="docutils literal">dms_versions</tt> is installed), Details, Move, Lock/Unlock,
 Archive/Restore and Delete.</li>
-<li>The arrows on the sides of the preview go to the previous or next file
-of the current page.</li>
+<li>The arrows on the sides of the preview, or the left and right keyboard
+keys, go to the previous or next file of the current page.</li>
 </ul>
 <p>The form view remains reachable: <em>Details</em> in the dialog, <em>Open</em> in the
 card dropdown, or any view that references the regular DMS views
@@ -420,11 +431,10 @@ explicitly (for example the file selector wizard).</p>
 <div class="section" id="known-issues-roadmap">
 <h2><a class="toc-backref" href="#toc-entry-2">Known issues / Roadmap</a></h2>
 <ul class="simple">
-<li>Show office documents inside the dialog when ONLYOFFICE is installed,
-instead of opening the editor as a separate action.</li>
 <li>Navigate across all the files of a directory, not only the loaded
 page.</li>
 <li>Print office documents, through a conversion step.</li>
+<li>Compare two text versions in the dialog.</li>
 </ul>
 </div>
 <div class="section" id="bug-tracker">

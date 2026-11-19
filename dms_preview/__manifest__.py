@@ -4,7 +4,7 @@
 {
     "name": "DMS Preview",
     "summary": "Preview DMS files in a dialog with contextual actions",
-    "version": "20.0.1.0.0",
+    "version": "20.0.1.1.0",
     "category": "Document Management",
     "license": "LGPL-3",
     "website": "https://github.com/OCA/dms",

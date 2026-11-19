@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 20.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-19 11:59+0000\n"
-"PO-Revision-Date: 2026-11-19 12:00+0000\n"
+"POT-Creation-Date: 2026-11-19 12:24+0000\n"
+"PO-Revision-Date: 2026-11-19 12:26+0000\n"
 "Last-Translator: XtremXpert\n"
 "Language-Team: French\n"
 "Language: fr\n"
@@ -33,6 +33,12 @@ msgstr "Archiver « %s » ?"
 #: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
 msgid "Cancel"
 msgstr "Annuler"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Copy the share link"
+msgstr "Copier le lien de partage"
 
 #. module: dms_preview
 #: model:ir.module.module,shortdesc:base.module_dms_preview
@@ -91,14 +97,32 @@ msgid "Edit in ONLYOFFICE"
 msgstr "Modifier dans ONLYOFFICE"
 
 #. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Expand the window"
+msgstr "Agrandir la fenêtre"
+
+#. module: dms_preview
 #: model:ir.model,name:dms_preview.model_dms_file
 msgid "File"
 msgstr "Fichier"
 
 #. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Finish editing"
+msgstr "Terminer l'édition"
+
+#. module: dms_preview
 #: model:ir.model.fields,field_description:dms_preview.field_dms_file__id
 msgid "ID"
 msgstr "ID"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Link copied to the clipboard."
+msgstr "Lien copié dans le presse-papiers."
 
 #. module: dms_preview
 #. odoo-javascript
@@ -149,15 +173,19 @@ msgid "No preview available for this file type."
 msgstr "Aucun aperçu disponible pour ce type de fichier."
 
 #. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Open in the viewer"
+msgstr "Ouvrir dans la visionneuse"
+
+#. module: dms_preview
 #: model:ir.module.module,summary:base.module_dms_preview
 msgid "Preview DMS files in a dialog with contextual actions"
 msgstr "Prévisualiser les fichiers DMS dans une fenêtre avec les actions adaptées"
 
 #. module: dms_preview
-#. odoo-javascript
 #. odoo-python
 #: code:addons/dms_preview/models/dms_file.py:0
-#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
 msgid "Preview in ONLYOFFICE"
 msgstr "Aperçu dans ONLYOFFICE"
 
@@ -172,6 +200,12 @@ msgstr "Fichier précédent"
 #: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
 msgid "Print"
 msgstr "Imprimer"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Reduce the window"
+msgstr "Réduire la fenêtre"
 
 #. module: dms_preview
 #. odoo-javascript
@@ -216,6 +250,12 @@ msgid "The file is now unlocked."
 msgstr "Le fichier est maintenant déverrouillé."
 
 #. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "The link could not be copied."
+msgstr "Le lien n'a pas pu être copié."
+
+#. module: dms_preview
 #. odoo-python
 #: code:addons/dms_preview/models/dms_file.py:0
 msgid "This file cannot be previewed in ONLYOFFICE."
@@ -226,3 +266,9 @@ msgstr "Ce fichier ne peut pas être prévisualisé dans ONLYOFFICE."
 #: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
 msgid "Unlock"
 msgstr "Déverrouiller"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Versions (%s)"
+msgstr "Versions (%s)"

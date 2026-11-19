@@ -7,3 +7,7 @@ This module replaces that action with a preview dialog. The document is shown
 inside the dialog (image, PDF, text, video or audio) next to the actions the
 file and the current user allow: download, edit, print, share, lock, archive,
 move or delete.
+
+When ``onlyoffice_odoo_dms`` is installed, office documents are previewed and
+edited in ONLYOFFICE without leaving the dialog, and the version history added
+by ``dms_versions`` is one click away.
