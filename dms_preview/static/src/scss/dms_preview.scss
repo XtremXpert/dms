@@ -1,0 +1,109 @@
+/**
+ * Copyright 2026 XtremXpert
+ * License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
+ */
+
+.modal-dialog.modal-fs .o_dms_preview_media {
+    height: 72vh;
+}
+
+.o_dms_preview {
+    .o_dms_preview_media {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 60vh;
+        min-height: 320px;
+        margin-top: map-get($spacers, 2);
+        overflow: hidden;
+        background: $o-gray-100;
+        border: $border-width solid $border-color;
+        border-radius: $border-radius-lg;
+    }
+
+    .o_dms_preview_image,
+    .o_dms_preview_frame,
+    .o_dms_preview_video {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        object-fit: contain;
+    }
+
+    .o_dms_preview_frame {
+        background: $white;
+    }
+
+    .o_dms_preview_audio {
+        width: 60%;
+        min-width: 280px;
+    }
+
+    .o_dms_preview_placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: map-get($spacers, 1);
+        padding: map-get($spacers, 3);
+        text-align: center;
+    }
+
+    .o_dms_preview_placeholder_icon {
+        width: 96px;
+        height: 96px;
+        margin-bottom: map-get($spacers, 2);
+        object-fit: contain;
+    }
+
+    .o_dms_preview_spinner {
+        position: absolute;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        inset: 0;
+        font-size: 2rem;
+        color: $o-gray-700;
+        background: rgba($white, 0.65);
+    }
+
+    .o_dms_preview_nav {
+        position: absolute;
+        top: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        color: $white;
+        background: rgba($black, 0.45);
+        border: 0;
+        border-radius: 50%;
+        transform: translateY(-50%);
+
+        &:hover {
+            background: rgba($black, 0.7);
+        }
+    }
+
+    .o_dms_preview_nav_previous {
+        left: map-get($spacers, 3);
+    }
+
+    .o_dms_preview_nav_next {
+        right: map-get($spacers, 3);
+    }
+
+    .o_dms_preview_meta {
+        margin-top: map-get($spacers, 2);
+    }
+
+    .o_dms_preview_meta_icon {
+        width: 20px;
+        height: 20px;
+        object-fit: contain;
+    }
+}

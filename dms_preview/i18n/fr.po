@@ -1,0 +1,274 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* dms_preview
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 20.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-19 12:24+0000\n"
+"PO-Revision-Date: 2026-11-19 12:26+0000\n"
+"Last-Translator: XtremXpert\n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Archive"
+msgstr "Archiver"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Archive \"%s\"?"
+msgstr "Archiver « %s » ?"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Cancel"
+msgstr "Annuler"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Copy the share link"
+msgstr "Copier le lien de partage"
+
+#. module: dms_preview
+#: model:ir.module.module,shortdesc:base.module_dms_preview
+msgid "DMS Preview"
+msgstr "Aperçu DMS"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Delete"
+msgstr "Supprimer"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Delete \"%s\"? This cannot be undone."
+msgstr "Supprimer « %s » ? Cette action est irréversible."
+
+#. module: dms_preview
+#. odoo-javascript
+#. odoo-python
+#: code:addons/dms_preview/models/dms_file.py:0
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Details"
+msgstr "Détails"
+
+#. module: dms_preview
+#: model:ir.model.fields,field_description:dms_preview.field_dms_file__display_name
+msgid "Display Name"
+msgstr "Nom affiché"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Download"
+msgstr "Télécharger"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Download the file or open its details."
+msgstr "Téléchargez le fichier ou ouvrez ses détails."
+
+#. module: dms_preview
+#. odoo-javascript
+#. odoo-python
+#: code:addons/dms_preview/models/dms_file.py:0
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Edit"
+msgstr "Modifier"
+
+#. module: dms_preview
+#. odoo-python
+#: code:addons/dms_preview/models/dms_file.py:0
+msgid "Edit in ONLYOFFICE"
+msgstr "Modifier dans ONLYOFFICE"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Expand the window"
+msgstr "Agrandir la fenêtre"
+
+#. module: dms_preview
+#: model:ir.model,name:dms_preview.model_dms_file
+msgid "File"
+msgstr "Fichier"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Finish editing"
+msgstr "Terminer l'édition"
+
+#. module: dms_preview
+#: model:ir.model.fields,field_description:dms_preview.field_dms_file__id
+msgid "ID"
+msgstr "ID"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Link copied to the clipboard."
+msgstr "Lien copié dans le presse-papiers."
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.xml:0
+msgid "Loading"
+msgstr "Chargement"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Lock"
+msgstr "Verrouiller"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Locked"
+msgstr "Verrouillé"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Modified on %s"
+msgstr "Modifié le %s"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "More actions"
+msgstr "Plus d'actions"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Move"
+msgstr "Déplacer"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Next file"
+msgstr "Fichier suivant"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "No preview available for this file type."
+msgstr "Aucun aperçu disponible pour ce type de fichier."
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Open in the viewer"
+msgstr "Ouvrir dans la visionneuse"
+
+#. module: dms_preview
+#: model:ir.module.module,summary:base.module_dms_preview
+msgid "Preview DMS files in a dialog with contextual actions"
+msgstr "Prévisualiser les fichiers DMS dans une fenêtre avec les actions adaptées"
+
+#. module: dms_preview
+#. odoo-python
+#: code:addons/dms_preview/models/dms_file.py:0
+msgid "Preview in ONLYOFFICE"
+msgstr "Aperçu dans ONLYOFFICE"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Previous file"
+msgstr "Fichier précédent"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Print"
+msgstr "Imprimer"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Reduce the window"
+msgstr "Réduire la fenêtre"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Restore"
+msgstr "Restaurer"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Restore \"%s\"?"
+msgstr "Restaurer « %s » ?"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Share"
+msgstr "Partager"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "The file could not be loaded."
+msgstr "Le fichier n'a pas pu être chargé."
+
+#. module: dms_preview
+#. odoo-python
+#: code:addons/dms_preview/models/dms_file.py:0
+msgid "The file is locked by another user."
+msgstr "Le fichier est verrouillé par un autre utilisateur."
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "The file is now locked."
+msgstr "Le fichier est maintenant verrouillé."
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "The file is now unlocked."
+msgstr "Le fichier est maintenant déverrouillé."
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "The link could not be copied."
+msgstr "Le lien n'a pas pu être copié."
+
+#. module: dms_preview
+#. odoo-python
+#: code:addons/dms_preview/models/dms_file.py:0
+msgid "This file cannot be previewed in ONLYOFFICE."
+msgstr "Ce fichier ne peut pas être prévisualisé dans ONLYOFFICE."
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Unlock"
+msgstr "Déverrouiller"
+
+#. module: dms_preview
+#. odoo-javascript
+#: code:addons/dms_preview/static/src/js/dms_preview_dialog.esm.js:0
+msgid "Versions (%s)"
+msgstr "Versions (%s)"

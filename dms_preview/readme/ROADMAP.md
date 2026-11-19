@@ -1,0 +1,3 @@
+- Navigate across all the files of a directory, not only the loaded page.
+- Print office documents, through a conversion step.
+- Compare two text versions in the dialog.

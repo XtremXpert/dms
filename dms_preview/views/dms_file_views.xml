@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+    Copyright 2026 XtremXpert
+    License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
+-->
+<odoo>
+    <!--
+        Default views of dms.file. They inherit the regular ones so that every
+        extension of ``dms`` (ONLYOFFICE, versions, ...) keeps applying, and
+        only change the JS class. Their lower priority makes them the default
+        views picked by the actions of the application; views referenced
+        explicitly (the file selector wizard, the migration list) keep the
+        original class.
+    -->
+    <record id="view_dms_file_kanban_preview" model="ir.ui.view">
+        <field name="name">dms_file.kanban.preview</field>
+        <field name="model">dms.file</field>
+        <field name="inherit_id" ref="dms.view_dms_file_kanban" />
+        <field name="mode">primary</field>
+        <field name="priority" eval="10" />
+        <field name="arch" type="xml">
+            <kanban position="attributes">
+                <attribute name="js_class">dms_preview_kanban</attribute>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_dms_file_list_preview" model="ir.ui.view">
+        <field name="name">dms_file.list.preview</field>
+        <field name="model">dms.file</field>
+        <field name="inherit_id" ref="dms.view_dms_file_tree" />
+        <field name="mode">primary</field>
+        <field name="priority" eval="10" />
+        <field name="arch" type="xml">
+            <list position="attributes">
+                <attribute name="js_class">dms_preview_list</attribute>
+            </list>
+        </field>
+    </record>
+</odoo>
